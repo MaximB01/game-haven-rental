@@ -50,7 +50,8 @@ const Navbar = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
             <div className="w-10 h-10 gaming-gradient-bg rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-xl">C</span>
+              {/* <span className="text-primary-foreground font-bold text-xl">C</span> */}
+              <img src="../../../public/icon-tr.png" alt="" />
             </div>
             <span className="text-xl font-bold text-foreground">CloudServe</span>
           </Link>

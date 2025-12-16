@@ -5,12 +5,16 @@ import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/contexts/LanguageContext';
+import minecraftImg from '@/assets/games/minecraft.jpg';
+import rustImg from '@/assets/games/rust.jpg';
+import valheimImg from '@/assets/games/valheim.jpg';
+import arkImg from '@/assets/games/ark.jpg';
 
 const games = [
   {
     id: 'minecraft',
     name: 'Minecraft',
-    image: 'https://images.unsplash.com/photo-1587573089734-599d584bded5?w=400&h=300&fit=crop',
+    image: minecraftImg,
     price: 4.99,
     category: 'popular',
     description: { nl: 'De #1 sandbox game ter wereld', en: 'The #1 sandbox game in the world' },
@@ -18,7 +22,7 @@ const games = [
   {
     id: 'rust',
     name: 'Rust',
-    image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&h=300&fit=crop',
+    image: rustImg,
     price: 9.99,
     category: 'popular',
     description: { nl: 'Survival multiplayer op zijn best', en: 'Survival multiplayer at its best' },
@@ -26,10 +30,18 @@ const games = [
   {
     id: 'valheim',
     name: 'Valheim',
-    image: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=400&h=300&fit=crop',
+    image: valheimImg,
     price: 6.99,
     category: 'new',
     description: { nl: 'Viking survival adventure', en: 'Viking survival adventure' },
+  },
+  {
+    id: 'ark',
+    name: 'Ark: Survival Evolved',
+    image: arkImg,
+    price: 5.99,
+    category: 'all',
+    description: { nl: 'Waar overleven evolutie wordt', en: 'Where survival becomes evolution' },
   },
 ];
 

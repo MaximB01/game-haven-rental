@@ -3,11 +3,15 @@ import { ArrowLeft, Check, Server, HardDrive, Users, Cpu } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import minecraftImg from '@/assets/games/minecraft.jpg';
+import rustImg from '@/assets/games/rust.jpg';
+import valheimImg from '@/assets/games/valheim.jpg';
+import arkImg from '@/assets/games/ark.jpg';
 
 const gamesData = {
   minecraft: {
     name: 'Minecraft',
-    image: 'https://images.unsplash.com/photo-1587573089734-599d584bded5?w=800&h=400&fit=crop',
+    image: minecraftImg,
     description: {
       nl: 'Host je eigen Minecraft server en speel samen met vrienden. Wij ondersteunen alle versies en modpacks.',
       en: 'Host your own Minecraft server and play with friends. We support all versions and modpacks.',
@@ -25,7 +29,7 @@ const gamesData = {
   },
   rust: {
     name: 'Rust',
-    image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&h=400&fit=crop',
+    image: rustImg,
     description: {
       nl: 'De ultieme survival ervaring. Bouw je basis, verzamel resources en overleef tegen andere spelers.',
       en: 'The ultimate survival experience. Build your base, gather resources and survive against other players.',
@@ -43,7 +47,7 @@ const gamesData = {
   },
   valheim: {
     name: 'Valheim',
-    image: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=800&h=400&fit=crop',
+    image: valheimImg,
     description: {
       nl: 'Verken de Noorse mythologie in deze populaire Viking survival game. Perfect voor co-op met vrienden.',
       en: 'Explore Norse mythology in this popular Viking survival game. Perfect for co-op with friends.',
@@ -57,6 +61,24 @@ const gamesData = {
       { name: 'Squad', ram: 4, slots: 5, storage: 20, price: 6.99, popular: true },
       { name: 'Clan', ram: 6, slots: 10, storage: 30, price: 9.99 },
       { name: 'Legion', ram: 8, slots: 20, storage: 50, price: 14.99 },
+    ],
+  },
+  ark: {
+    name: 'Ark: Survival Evolved',
+    image: arkImg,
+    description: {
+      nl: 'Waar overleven evolutie wordt — tem kolossale wezens, bouw beschavingen en vecht om je plaats aan de top.',
+      en: 'Where survival becomes evolution — tame colossal creatures, build civilizations, and fight for your place at the top.',
+    },
+    features: {
+      nl: ['Mod support', 'Automatische backups', 'Wereldbeheer', 'Lage latency'],
+      en: ['Mod support', 'Automatic backups', 'World management', 'Low latency'],
+    },
+    plans: [
+      { name: 'Starter', ram: 2, slots: 10, storage: 10, price: 5.99 },
+      { name: 'Standard', ram: 4, slots: 20, storage: 20, price: 6.99 },
+      { name: 'Pro', ram: 6, slots: 50, storage: 30, price: 11.99, popular: true },
+      { name: 'Ultimate', ram: 8, slots: 100, storage: 50, price: 16.99 },
     ],
   },
 };

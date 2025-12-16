@@ -34,8 +34,8 @@ const Contact = () => {
     {
       icon: Mail,
       label: t('contact.info.email'),
-      value: 'support@cloudserve.nl',
-      href: 'mailto:support@cloudserve.nl',
+      value: 'support@cloudserve.be',
+      href: 'mailto:support@cloudserve.be',
     },
     {
       icon: MessageCircle,
