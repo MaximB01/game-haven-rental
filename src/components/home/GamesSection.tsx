@@ -2,26 +2,29 @@ import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import minecraftImg from '@/assets/games/minecraft.jpg';
+import rustImg from '@/assets/games/rust.jpg';
+import valheimImg from '@/assets/games/valheim.jpg';
 
 const games = [
   {
     id: 'minecraft',
     name: 'Minecraft',
-    image: 'https://images.unsplash.com/photo-1587573089734-599d584bded5?w=400&h=300&fit=crop',
+    image: minecraftImg,
     price: 4.99,
     popular: true,
   },
   {
     id: 'rust',
     name: 'Rust',
-    image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=400&h=300&fit=crop',
+    image: rustImg,
     price: 9.99,
     popular: true,
   },
   {
     id: 'valheim',
     name: 'Valheim',
-    image: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=400&h=300&fit=crop',
+    image: valheimImg,
     price: 6.99,
     popular: false,
     isNew: true,
