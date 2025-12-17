@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus } from 'lucide-react';
+import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -258,6 +258,10 @@ const Admin = () => {
               <ShoppingCart className="h-4 w-4" />
               {t('admin.orders')}
             </TabsTrigger>
+            <TabsTrigger value="archive" className="flex items-center gap-2">
+              <Archive className="h-4 w-4" />
+              {t('admin.archive')}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
@@ -310,7 +314,7 @@ const Admin = () => {
             <Card>
               <CardHeader>
                 <CardTitle>{t('admin.orderManagement')}</CardTitle>
-                <CardDescription>{t('admin.orderDescription')}</CardDescription>
+                <CardDescription>{t('admin.orderDescriptionActive')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -325,7 +329,7 @@ const Admin = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredOrders.map((order) => (
+                    {filteredOrders.filter(o => !['cancelled', 'failed', 'suspended'].includes(o.status)).map((order) => (
                       <TableRow key={order.id}>
                         <TableCell>{order.product_name}</TableCell>
                         <TableCell>{order.plan_name}</TableCell>
@@ -342,7 +346,9 @@ const Admin = () => {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="provisioning">Provisioning</SelectItem>
                               <SelectItem value="active">Active</SelectItem>
+                              <SelectItem value="suspended">Suspended</SelectItem>
                               <SelectItem value="cancelled">Cancelled</SelectItem>
                               <SelectItem value="failed">Failed</SelectItem>
                             </SelectContent>
@@ -350,6 +356,64 @@ const Admin = () => {
                         </TableCell>
                       </TableRow>
                     ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="archive">
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('admin.archiveManagement')}</CardTitle>
+                <CardDescription>{t('admin.archiveDescription')}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t('admin.product')}</TableHead>
+                      <TableHead>{t('admin.plan')}</TableHead>
+                      <TableHead>{t('admin.price')}</TableHead>
+                      <TableHead>{t('admin.status')}</TableHead>
+                      <TableHead>{t('admin.userId')}</TableHead>
+                      <TableHead>{t('admin.actions')}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredOrders.filter(o => ['cancelled', 'failed', 'suspended'].includes(o.status)).length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          {t('admin.noArchivedOrders')}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredOrders.filter(o => ['cancelled', 'failed', 'suspended'].includes(o.status)).map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell>{order.product_name}</TableCell>
+                          <TableCell>{order.plan_name}</TableCell>
+                          <TableCell>€{order.price.toFixed(2)}</TableCell>
+                          <TableCell>{getStatusBadge(order.status)}</TableCell>
+                          <TableCell className="font-mono text-xs">{order.user_id.slice(0, 8)}...</TableCell>
+                          <TableCell>
+                            <Select
+                              value={order.status}
+                              onValueChange={(value) => handleUpdateOrderStatus(order.id, value)}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="active">Reactivate</SelectItem>
+                                <SelectItem value="suspended">Suspended</SelectItem>
+                                <SelectItem value="cancelled">Cancelled</SelectItem>
+                                <SelectItem value="failed">Failed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
