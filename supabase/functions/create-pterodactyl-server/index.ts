@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Allowed game IDs whitelist
+const ALLOWED_GAME_IDS = ['minecraft', 'rust', 'ark', 'valheim'];
+
 // Pterodactyl egg IDs and startup commands - adjust these to match your panel
 const GAME_EGGS: Record<string, { nestId: number; eggId: number; startup: string; dockerImage: string; environment: Record<string, string> }> = {
   minecraft: { 
@@ -66,14 +69,46 @@ interface OrderRequest {
   disk: number;
   userId: string;
   userEmail: string;
-  // Optional variant fields
   variantId?: string;
   eggId?: number;
   nestId?: number;
   dockerImage?: string;
   startupCommand?: string;
-  // Optional game-specific config
   minecraftVersion?: string;
+}
+
+// Input validation helpers
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
+function isValidEmail(str: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(str) && str.length <= 255;
+}
+
+function isValidGameId(str: string): boolean {
+  return ALLOWED_GAME_IDS.includes(str.toLowerCase());
+}
+
+function isValidMinecraftVersion(str: string): boolean {
+  // Allow "latest" or semver-like versions (e.g., 1.20.4, 1.19)
+  const versionRegex = /^(latest|[0-9]+\.[0-9]+(\.[0-9]+)?)$/;
+  return versionRegex.test(str);
+}
+
+function sanitizeString(str: string, maxLength: number = 100): string {
+  return str.replace(/[^a-zA-Z0-9\-_@.]/g, '').slice(0, maxLength);
+}
+
+function validateResourceLimits(ram: number, cpu: number, disk: number): boolean {
+  // Reasonable limits: RAM 512MB-65536MB, CPU 10-1000%, Disk 1024MB-500000MB
+  return (
+    Number.isInteger(ram) && ram >= 512 && ram <= 65536 &&
+    Number.isInteger(cpu) && cpu >= 10 && cpu <= 1000 &&
+    Number.isInteger(disk) && disk >= 1024 && disk <= 500000
+  );
 }
 
 serve(async (req) => {
@@ -83,43 +118,152 @@ serve(async (req) => {
   }
 
   try {
+    // Authentication: Verify JWT token
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('Missing or invalid authorization header');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+      console.error('Missing Supabase configuration');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Service temporarily unavailable' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify the user's JWT and get their user ID
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      console.error('Authentication failed:', authError?.message);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid or expired session' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     let pterodactylUrl = Deno.env.get('PTERODACTYL_URL');
     const pterodactylApiKey = Deno.env.get('PTERODACTYL_API_KEY');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!pterodactylUrl || !pterodactylApiKey) {
       console.error('Missing Pterodactyl configuration');
-      throw new Error('Pterodactyl configuration missing');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Service temporarily unavailable' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Ensure URL has protocol
     if (!pterodactylUrl.startsWith('http://') && !pterodactylUrl.startsWith('https://')) {
       pterodactylUrl = `https://${pterodactylUrl}`;
     }
-    // Remove trailing slash if present
     pterodactylUrl = pterodactylUrl.replace(/\/$/, '');
 
-    console.log(`Using Pterodactyl URL: ${pterodactylUrl}`);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+    const body: OrderRequest = await req.json();
+    const { orderId, gameId, planName, ram, cpu, disk, userId, userEmail, variantId, eggId, nestId, dockerImage, startupCommand, minecraftVersion } = body;
 
-    const { orderId, gameId, planName, ram, cpu, disk, userId, userEmail, variantId, eggId, nestId, dockerImage, startupCommand, minecraftVersion }: OrderRequest = await req.json();
+    // Input validation
+    if (!orderId || !isValidUUID(orderId)) {
+      console.error('Invalid orderId format');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid request parameters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    console.log(`Processing order ${orderId} for game ${gameId}, plan ${planName}`);
-    console.log(`Resources - RAM: ${ram}MB, CPU: ${cpu}%, Disk: ${disk}MB`);
+    if (!userId || !isValidUUID(userId)) {
+      console.error('Invalid userId format');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid request parameters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    const gameEgg = GAME_EGGS[gameId];
+    if (!userEmail || !isValidEmail(userEmail)) {
+      console.error('Invalid email format');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid request parameters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!gameId || (!isValidGameId(gameId) && !eggId)) {
+      console.error('Invalid or unsupported game');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid request parameters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!validateResourceLimits(ram, cpu, disk)) {
+      console.error('Invalid resource limits');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid request parameters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (minecraftVersion && !isValidMinecraftVersion(minecraftVersion)) {
+      console.error('Invalid minecraft version format');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid request parameters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Authorization: Verify the user owns this order
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('user_id, status')
+      .eq('id', orderId)
+      .single();
+
+    if (orderError || !order) {
+      console.error('Order not found');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Order not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (order.user_id !== user.id) {
+      console.error('User does not own this order');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Access denied' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Processing order ${orderId} for user ${user.id}`);
+
+    const gameEgg = GAME_EGGS[gameId.toLowerCase()];
     if (!gameEgg && !eggId) {
-      throw new Error(`Unsupported game: ${gameId} and no variant egg provided`);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unsupported game type' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Step 1: Create or get Pterodactyl user
     let pterodactylUserId: number;
+    const sanitizedEmail = sanitizeString(userEmail, 255);
 
-    // Check if user exists by email
     const userSearchResponse = await fetch(
-      `${pterodactylUrl}/api/application/users?filter[email]=${encodeURIComponent(userEmail)}`,
+      `${pterodactylUrl}/api/application/users?filter[email]=${encodeURIComponent(sanitizedEmail)}`,
       {
         headers: {
           'Authorization': `Bearer ${pterodactylApiKey}`,
@@ -130,14 +274,12 @@ serve(async (req) => {
     );
 
     const userSearchData = await userSearchResponse.json();
-    console.log('User search result:', JSON.stringify(userSearchData));
 
     if (userSearchData.data && userSearchData.data.length > 0) {
       pterodactylUserId = userSearchData.data[0].attributes.id;
       console.log(`Found existing Pterodactyl user: ${pterodactylUserId}`);
     } else {
-      // Create new user
-      const username = userEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '') + '_' + Date.now().toString(36);
+      const username = sanitizedEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').slice(0, 20) + '_' + Date.now().toString(36);
       const createUserResponse = await fetch(`${pterodactylUrl}/api/application/users`, {
         method: 'POST',
         headers: {
@@ -146,18 +288,21 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: userEmail,
+          email: sanitizedEmail,
           username: username,
-          first_name: userEmail.split('@')[0],
+          first_name: sanitizedEmail.split('@')[0].slice(0, 50),
           last_name: 'CloudServe',
         }),
       });
 
       const createUserData = await createUserResponse.json();
-      console.log('Create user result:', JSON.stringify(createUserData));
 
       if (!createUserResponse.ok) {
-        throw new Error(`Failed to create Pterodactyl user: ${JSON.stringify(createUserData)}`);
+        console.error('Failed to create Pterodactyl user');
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to create server. Please try again.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
       pterodactylUserId = createUserData.attributes.id;
@@ -173,15 +318,17 @@ serve(async (req) => {
     });
 
     const nodesData = await nodesResponse.json();
-    console.log('Nodes data:', JSON.stringify(nodesData));
 
     if (!nodesData.data || nodesData.data.length === 0) {
-      throw new Error('No nodes available');
+      console.error('No nodes available');
+      return new Response(
+        JSON.stringify({ success: false, error: 'No server capacity available. Please try again later.' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const nodeId = nodesData.data[0].attributes.id;
 
-    // Get allocations for the node
     const allocationsResponse = await fetch(
       `${pterodactylUrl}/api/application/nodes/${nodeId}/allocations?filter[server_id]=null`,
       {
@@ -193,18 +340,22 @@ serve(async (req) => {
     );
 
     const allocationsData = await allocationsResponse.json();
-    console.log('Allocations data:', JSON.stringify(allocationsData));
 
     if (!allocationsData.data || allocationsData.data.length === 0) {
-      throw new Error('No free allocations available');
+      console.error('No free allocations available');
+      return new Response(
+        JSON.stringify({ success: false, error: 'No server capacity available. Please try again later.' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const allocationId = allocationsData.data[0].attributes.id;
 
     // Step 3: Create the server
-    const serverName = `${gameId}-${planName}-${orderId.slice(0, 8)}`.toLowerCase();
+    const sanitizedGameId = sanitizeString(gameId, 20);
+    const sanitizedPlanName = sanitizeString(planName, 30);
+    const serverName = `${sanitizedGameId}-${sanitizedPlanName}-${orderId.slice(0, 8)}`.toLowerCase();
     
-    // Use variant settings if provided, otherwise fall back to game egg defaults
     const finalEggId = eggId || gameEgg?.eggId || 1;
     const finalDockerImage = dockerImage || gameEgg?.dockerImage || 'ghcr.io/pterodactyl/yolks:java_17';
     const finalStartup = startupCommand || gameEgg?.startup || 'java -Xms128M -Xmx{{SERVER_MEMORY}}M -jar {{SERVER_JARFILE}}';
@@ -214,16 +365,13 @@ serve(async (req) => {
       BUILD_NUMBER: 'latest'
     };
 
-    // Clone to avoid mutating shared constants
     const finalEnvironment: Record<string, string> = { ...baseEnvironment };
 
-    // Apply optional Minecraft version (supports common env var names)
-    if (minecraftVersion && gameId === 'minecraft') {
+    if (minecraftVersion && gameId.toLowerCase() === 'minecraft') {
       finalEnvironment.VANILLA_VERSION = minecraftVersion;
       finalEnvironment.MINECRAFT_VERSION = minecraftVersion;
     }
 
-    // Values from database are already in MB, no conversion needed
     const createServerPayload = {
       name: serverName,
       user: pterodactylUserId,
@@ -232,11 +380,11 @@ serve(async (req) => {
       startup: finalStartup,
       environment: finalEnvironment,
       limits: {
-        memory: ram,  // Already in MB from database
+        memory: ram,
         swap: 0,
-        disk: disk,   // Already in MB from database
+        disk: disk,
         io: 500,
-        cpu: cpu,     // CPU percentage
+        cpu: cpu,
       },
       feature_limits: {
         databases: 1,
@@ -247,8 +395,6 @@ serve(async (req) => {
         default: allocationId,
       },
     };
-
-    console.log('Creating server with payload:', JSON.stringify(createServerPayload));
 
     const createServerResponse = await fetch(`${pterodactylUrl}/api/application/servers`, {
       method: 'POST',
@@ -261,10 +407,13 @@ serve(async (req) => {
     });
 
     const createServerData = await createServerResponse.json();
-    console.log('Create server result:', JSON.stringify(createServerData));
 
     if (!createServerResponse.ok) {
-      throw new Error(`Failed to create server: ${JSON.stringify(createServerData)}`);
+      console.error('Failed to create server in panel');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Failed to create server. Please try again.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const serverId = createServerData.attributes.id;
@@ -282,10 +431,10 @@ serve(async (req) => {
       .eq('id', orderId);
 
     if (updateError) {
-      console.error('Failed to update order status:', updateError);
+      console.error('Failed to update order status');
     }
 
-    console.log(`Server created successfully: ${serverId} (${serverIdentifier})`);
+    console.log(`Server created successfully: ${serverId}`);
 
     return new Response(
       JSON.stringify({
@@ -300,11 +449,10 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Error creating server:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to create server';
     return new Response(
       JSON.stringify({
         success: false,
-        error: errorMessage,
+        error: 'Failed to create server. Please try again.',
       }),
       {
         status: 500,
