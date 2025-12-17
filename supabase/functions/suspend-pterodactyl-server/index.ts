@@ -6,9 +6,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Allowed actions whitelist
+const ALLOWED_ACTIONS = ['suspend', 'unsuspend'] as const;
+type AllowedAction = typeof ALLOWED_ACTIONS[number];
+
 interface SuspendRequest {
   orderId: string;
-  action: 'suspend' | 'unsuspend';
+  action: AllowedAction;
+}
+
+// Input validation helpers
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
+function isValidAction(str: string): str is AllowedAction {
+  return ALLOWED_ACTIONS.includes(str as AllowedAction);
 }
 
 serve(async (req) => {
@@ -18,50 +32,121 @@ serve(async (req) => {
   }
 
   try {
+    // Authentication: Verify JWT token
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('Missing or invalid authorization header');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+      console.error('Missing Supabase configuration');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Service temporarily unavailable' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify the user's JWT and get their user ID
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      console.error('Authentication failed');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid or expired session' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     let pterodactylUrl = Deno.env.get('PTERODACTYL_URL');
     const pterodactylApiKey = Deno.env.get('PTERODACTYL_API_KEY');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!pterodactylUrl || !pterodactylApiKey) {
       console.error('Missing Pterodactyl configuration');
-      throw new Error('Pterodactyl configuration missing');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Service temporarily unavailable' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Ensure URL has protocol
     if (!pterodactylUrl.startsWith('http://') && !pterodactylUrl.startsWith('https://')) {
       pterodactylUrl = `https://${pterodactylUrl}`;
     }
-    // Remove trailing slash if present
     pterodactylUrl = pterodactylUrl.replace(/\/$/, '');
 
-    console.log(`Using Pterodactyl URL: ${pterodactylUrl}`);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+    const body: SuspendRequest = await req.json();
+    const { orderId, action } = body;
 
-    const { orderId, action }: SuspendRequest = await req.json();
+    // Input validation
+    if (!orderId || !isValidUUID(orderId)) {
+      console.error('Invalid orderId format');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid request parameters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    console.log(`Processing ${action} for order ${orderId}`);
+    if (!action || !isValidAction(action)) {
+      console.error('Invalid action');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid request parameters' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // Get order with Pterodactyl server ID
+    // Get order with Pterodactyl server ID and verify ownership
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('*')
+      .select('user_id, pterodactyl_server_id')
       .eq('id', orderId)
       .single();
 
     if (orderError || !order) {
-      throw new Error(`Order not found: ${orderId}`);
+      console.error('Order not found');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Order not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Authorization: Check if user is admin or owns the order
+    const { data: isAdmin } = await supabase.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'admin'
+    });
+
+    if (order.user_id !== user.id && !isAdmin) {
+      console.error('User does not have permission for this order');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Access denied' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const serverId = order.pterodactyl_server_id;
     
     if (!serverId) {
-      console.error('No Pterodactyl server ID found for order');
-      throw new Error('No server ID found for this order');
+      console.error('No server ID found for order');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Server not found for this order' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log(`${action === 'suspend' ? 'Suspending' : 'Unsuspending'} Pterodactyl server ${serverId}`);
+    console.log(`${action === 'suspend' ? 'Suspending' : 'Unsuspending'} server for order ${orderId}`);
 
     // Call Pterodactyl API to suspend/unsuspend
     const suspendResponse = await fetch(
@@ -77,12 +162,14 @@ serve(async (req) => {
     );
 
     if (!suspendResponse.ok) {
-      const errorData = await suspendResponse.text();
-      console.error(`Pterodactyl ${action} failed:`, errorData);
-      throw new Error(`Failed to ${action} server in Pterodactyl: ${errorData}`);
+      console.error(`Failed to ${action} server`);
+      return new Response(
+        JSON.stringify({ success: false, error: `Failed to ${action} server. Please try again.` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log(`Server ${serverId} ${action}ed successfully`);
+    console.log(`Server ${action}ed successfully`);
 
     // Update order status
     const newStatus = action === 'suspend' ? 'suspended' : 'active';
@@ -95,7 +182,7 @@ serve(async (req) => {
       .eq('id', orderId);
 
     if (updateError) {
-      console.error('Failed to update order status:', updateError);
+      console.error('Failed to update order status');
     }
 
     return new Response(
@@ -108,12 +195,11 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error('Error suspending server:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to suspend server';
+    console.error('Error processing request:', error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: errorMessage,
+        error: 'Failed to process request. Please try again.',
       }),
       {
         status: 500,
