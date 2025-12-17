@@ -32,7 +32,7 @@ serve(async (req) => {
   }
 
   try {
-    const pterodactylUrl = Deno.env.get('PTERODACTYL_URL');
+    let pterodactylUrl = Deno.env.get('PTERODACTYL_URL');
     const pterodactylApiKey = Deno.env.get('PTERODACTYL_API_KEY');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -41,6 +41,15 @@ serve(async (req) => {
       console.error('Missing Pterodactyl configuration');
       throw new Error('Pterodactyl configuration missing');
     }
+
+    // Ensure URL has protocol
+    if (!pterodactylUrl.startsWith('http://') && !pterodactylUrl.startsWith('https://')) {
+      pterodactylUrl = `https://${pterodactylUrl}`;
+    }
+    // Remove trailing slash if present
+    pterodactylUrl = pterodactylUrl.replace(/\/$/, '');
+
+    console.log(`Using Pterodactyl URL: ${pterodactylUrl}`);
 
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
