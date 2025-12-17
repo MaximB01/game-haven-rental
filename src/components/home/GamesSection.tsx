@@ -105,7 +105,13 @@ const GamesSection = () => {
         </div>
 
         {/* Games Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={`grid gap-6 ${
+          products.length === 1 
+            ? 'grid-cols-1 max-w-md mx-auto' 
+            : products.length === 2 
+              ? 'grid-cols-1 md:grid-cols-2 max-w-2xl mx-auto'
+              : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+        }`}>
           {products.map((product) => (
             <Link
               key={product.id}
