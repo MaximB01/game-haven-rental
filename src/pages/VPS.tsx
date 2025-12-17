@@ -1,42 +1,68 @@
-import { Check, Cpu, HardDrive, Globe, Gauge } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Check, Cpu, HardDrive, Globe, Gauge, Loader2 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { supabase } from '@/integrations/supabase/client';
+
+interface ProductPlan {
+  id: string;
+  name: string;
+  price: number;
+  ram: number;
+  cpu: number;
+  disk: number;
+}
 
 const VPS = () => {
   const { t, language } = useLanguage();
+  const [plans, setPlans] = useState<ProductPlan[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const plans = [
-    {
-      name: t('vps.basic'),
-      cpu: 2,
-      ram: 4,
-      storage: 50,
-      bandwidth: '2 TB',
-      price: 9.99,
-    },
-    {
-      name: t('vps.professional'),
-      cpu: 4,
-      ram: 8,
-      storage: 100,
-      bandwidth: '5 TB',
-      price: 19.99,
-      popular: true,
-    },
-    {
-      name: t('vps.enterprise'),
-      cpu: 8,
-      ram: 16,
-      storage: 200,
-      bandwidth: '10 TB',
-      price: 39.99,
-    },
-  ];
+  useEffect(() => {
+    fetchPlans();
+  }, []);
+
+  const fetchPlans = async () => {
+    // First get the VPS product
+    const { data: product } = await supabase
+      .from('products')
+      .select('id')
+      .eq('slug', 'vps')
+      .maybeSingle();
+
+    if (product) {
+      const { data: plansData } = await supabase
+        .from('product_plans')
+        .select('*')
+        .eq('product_id', product.id)
+        .eq('is_active', true)
+        .order('price', { ascending: true });
+
+      if (plansData) setPlans(plansData as ProductPlan[]);
+    }
+    setLoading(false);
+  };
 
   const features = language === 'nl'
     ? ['Root access', 'SSD opslag', 'DDoS bescherming', 'Dagelijkse backups', '99.9% uptime garantie', 'Nederlands datacenter']
     : ['Root access', 'SSD storage', 'DDoS protection', 'Daily backups', '99.9% uptime guarantee', 'Dutch datacenter'];
+
+  // Mark the second plan as popular
+  const plansWithPopular = plans.map((plan, index) => ({
+    ...plan,
+    popular: index === 1,
+  }));
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -58,10 +84,10 @@ const VPS = () => {
       {/* Pricing */}
       <section className="py-16">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {plans.map((plan, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+            {plansWithPopular.map((plan, index) => (
               <div
-                key={index}
+                key={plan.id}
                 className={`relative rounded-2xl bg-card border p-8 hover-lift ${
                   plan.popular ? 'border-primary ring-2 ring-primary/20' : 'border-border'
                 }`}
@@ -81,19 +107,19 @@ const VPS = () => {
                 <ul className="space-y-4 mb-8">
                   <li className="flex items-center gap-3 text-muted-foreground">
                     <Cpu className="h-5 w-5 text-primary" />
-                    {plan.cpu} vCPU Cores
+                    {plan.cpu}% vCPU
                   </li>
                   <li className="flex items-center gap-3 text-muted-foreground">
                     <Gauge className="h-5 w-5 text-primary" />
-                    {plan.ram} GB RAM
+                    {(plan.ram / 1024).toFixed(0)} GB RAM
                   </li>
                   <li className="flex items-center gap-3 text-muted-foreground">
                     <HardDrive className="h-5 w-5 text-primary" />
-                    {plan.storage} GB NVMe SSD
+                    {(plan.disk / 1024).toFixed(0)} GB NVMe SSD
                   </li>
                   <li className="flex items-center gap-3 text-muted-foreground">
                     <Globe className="h-5 w-5 text-primary" />
-                    {plan.bandwidth} {language === 'nl' ? 'Bandbreedte' : 'Bandwidth'}
+                    {language === 'nl' ? 'Onbeperkt verkeer' : 'Unlimited traffic'}
                   </li>
                 </ul>
 

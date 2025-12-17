@@ -1,54 +1,84 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Search } from 'lucide-react';
+import { ArrowRight, Search, Loader2 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { supabase } from '@/integrations/supabase/client';
 import minecraftImg from '@/assets/games/minecraft.jpg';
 import rustImg from '@/assets/games/rust.jpg';
 import valheimImg from '@/assets/games/valheim.jpg';
 import arkImg from '@/assets/games/ark.jpg';
 
-const games = [
-  {
-    id: 'minecraft',
-    name: 'Minecraft',
-    image: minecraftImg,
-    price: 4.99,
-    category: 'popular',
-    description: { nl: 'De #1 sandbox game ter wereld', en: 'The #1 sandbox game in the world' },
-  },
-  {
-    id: 'rust',
-    name: 'Rust',
-    image: rustImg,
-    price: 9.99,
-    category: 'popular',
-    description: { nl: 'Survival multiplayer op zijn best', en: 'Survival multiplayer at its best' },
-  },
-  {
-    id: 'valheim',
-    name: 'Valheim',
-    image: valheimImg,
-    price: 6.99,
-    category: 'new',
-    description: { nl: 'Viking survival adventure', en: 'Viking survival adventure' },
-  },
-  {
-    id: 'ark',
-    name: 'Ark: Survival Evolved',
-    image: arkImg,
-    price: 5.99,
-    category: 'all',
-    description: { nl: 'Waar overleven evolutie wordt', en: 'Where survival becomes evolution' },
-  },
-];
+// Fallback images for games without custom images
+const defaultImages: Record<string, string> = {
+  minecraft: minecraftImg,
+  rust: rustImg,
+  valheim: valheimImg,
+  ark: arkImg,
+};
+
+interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image_url: string | null;
+  category: string;
+  display_type: string;
+  is_active: boolean;
+}
+
+interface ProductPlan {
+  id: string;
+  product_id: string;
+  price: number;
+}
 
 const GameServers = () => {
   const { t, language } = useLanguage();
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [products, setProducts] = useState<Product[]>([]);
+  const [plans, setPlans] = useState<ProductPlan[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const fetchProducts = async () => {
+    // Fetch products that should be grouped (game servers)
+    const { data: productsData } = await supabase
+      .from('products')
+      .select('*')
+      .eq('display_type', 'grouped')
+      .eq('is_active', true)
+      .order('name');
+
+    // Fetch lowest price plans for each product
+    const { data: plansData } = await supabase
+      .from('product_plans')
+      .select('id, product_id, price')
+      .eq('is_active', true)
+      .order('price', { ascending: true });
+
+    if (productsData) setProducts(productsData as Product[]);
+    if (plansData) setPlans(plansData as ProductPlan[]);
+    setLoading(false);
+  };
+
+  const getLowestPrice = (productId: string) => {
+    const productPlans = plans.filter(p => p.product_id === productId);
+    if (productPlans.length === 0) return 0;
+    return Math.min(...productPlans.map(p => p.price));
+  };
+
+  const getProductImage = (product: Product) => {
+    if (product.image_url) return product.image_url;
+    return defaultImages[product.slug] || minecraftImg;
+  };
 
   const filters = [
     { id: 'all', label: t('gameServers.filter.all') },
@@ -56,11 +86,20 @@ const GameServers = () => {
     { id: 'new', label: t('gameServers.filter.new') },
   ];
 
-  const filteredGames = games.filter((game) => {
-    const matchesFilter = filter === 'all' || game.category === filter;
-    const matchesSearch = game.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
+  const filteredProducts = products.filter((product) => {
+    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesSearch;
   });
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -117,32 +156,32 @@ const GameServers = () => {
       <section className="py-12">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredGames.map((game) => (
+            {filteredProducts.map((product) => (
               <Link
-                key={game.id}
-                to={`/game-servers/${game.id}`}
+                key={product.id}
+                to={`/game-servers/${product.slug}`}
                 className="group overflow-hidden rounded-2xl bg-card border border-border hover-lift"
               >
                 {/* Image */}
                 <div className="aspect-[4/3] overflow-hidden">
                   <img
-                    src={game.image}
-                    alt={game.name}
+                    src={getProductImage(product)}
+                    alt={product.name}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   />
                 </div>
 
                 {/* Content */}
                 <div className="p-6">
-                  <h3 className="text-xl font-bold text-foreground mb-2">{game.name}</h3>
+                  <h3 className="text-xl font-bold text-foreground mb-2">{product.name}</h3>
                   <p className="text-muted-foreground text-sm mb-4">
-                    {game.description[language]}
+                    {product.description || ''}
                   </p>
                   <div className="flex items-center justify-between">
                     <div>
                       <span className="text-sm text-muted-foreground">{t('games.from')}</span>
                       <p className="text-xl font-bold text-primary">
-                        €{game.price.toFixed(2)}
+                        €{getLowestPrice(product.id).toFixed(2)}
                         <span className="text-sm font-normal text-muted-foreground">{t('games.perMonth')}</span>
                       </p>
                     </div>
@@ -156,7 +195,7 @@ const GameServers = () => {
             ))}
           </div>
 
-          {filteredGames.length === 0 && (
+          {filteredProducts.length === 0 && (
             <div className="text-center py-12">
               <p className="text-muted-foreground">No games found</p>
             </div>

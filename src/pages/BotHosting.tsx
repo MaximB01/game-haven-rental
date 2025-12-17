@@ -1,39 +1,68 @@
-import { Check, Bot, Cpu, HardDrive, Zap } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Check, Bot, Cpu, HardDrive, Zap, Loader2 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { supabase } from '@/integrations/supabase/client';
+
+interface ProductPlan {
+  id: string;
+  name: string;
+  price: number;
+  ram: number;
+  cpu: number;
+  disk: number;
+}
 
 const BotHosting = () => {
   const { t, language } = useLanguage();
+  const [plans, setPlans] = useState<ProductPlan[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const plans = [
-    {
-      name: 'Starter',
-      ram: 512,
-      cpu: 'Shared',
-      storage: 5,
-      price: 2.99,
-    },
-    {
-      name: 'Standard',
-      ram: 1024,
-      cpu: '1 vCore',
-      storage: 10,
-      price: 4.99,
-      popular: true,
-    },
-    {
-      name: 'Pro',
-      ram: 2048,
-      cpu: '2 vCores',
-      storage: 20,
-      price: 9.99,
-    },
-  ];
+  useEffect(() => {
+    fetchPlans();
+  }, []);
+
+  const fetchPlans = async () => {
+    // First get the Bot Hosting product
+    const { data: product } = await supabase
+      .from('products')
+      .select('id')
+      .eq('slug', 'bot-hosting')
+      .maybeSingle();
+
+    if (product) {
+      const { data: plansData } = await supabase
+        .from('product_plans')
+        .select('*')
+        .eq('product_id', product.id)
+        .eq('is_active', true)
+        .order('price', { ascending: true });
+
+      if (plansData) setPlans(plansData as ProductPlan[]);
+    }
+    setLoading(false);
+  };
 
   const features = language === 'nl'
     ? ['24/7 online', 'Discord & Telegram support', 'Python, Node.js & meer', 'Auto-restart', 'SSH toegang', 'Git deployment']
     : ['24/7 online', 'Discord & Telegram support', 'Python, Node.js & more', 'Auto-restart', 'SSH access', 'Git deployment'];
+
+  // Mark the second plan as popular
+  const plansWithPopular = plans.map((plan, index) => ({
+    ...plan,
+    popular: index === 1,
+  }));
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -58,10 +87,10 @@ const BotHosting = () => {
       {/* Pricing */}
       <section className="py-16">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {plans.map((plan, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+            {plansWithPopular.map((plan, index) => (
               <div
-                key={index}
+                key={plan.id}
                 className={`relative rounded-2xl bg-card border p-8 hover-lift ${
                   plan.popular ? 'border-primary ring-2 ring-primary/20' : 'border-border'
                 }`}
@@ -85,11 +114,11 @@ const BotHosting = () => {
                   </li>
                   <li className="flex items-center gap-3 text-muted-foreground">
                     <Cpu className="h-5 w-5 text-primary" />
-                    {plan.cpu}
+                    {plan.cpu}% CPU
                   </li>
                   <li className="flex items-center gap-3 text-muted-foreground">
                     <HardDrive className="h-5 w-5 text-primary" />
-                    {plan.storage} GB SSD
+                    {(plan.disk / 1024).toFixed(0)} GB SSD
                   </li>
                 </ul>
 
