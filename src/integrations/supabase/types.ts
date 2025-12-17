@@ -115,6 +115,7 @@ export type Database = {
           created_at: string
           default_port: number | null
           description: string | null
+          display_type: string
           docker_image: string | null
           egg_id: number | null
           id: string
@@ -125,6 +126,7 @@ export type Database = {
           min_ram: number
           name: string
           nest_id: number | null
+          page_path: string | null
           slug: string
           startup_command: string | null
           updated_at: string
@@ -134,6 +136,7 @@ export type Database = {
           created_at?: string
           default_port?: number | null
           description?: string | null
+          display_type?: string
           docker_image?: string | null
           egg_id?: number | null
           id?: string
@@ -144,6 +147,7 @@ export type Database = {
           min_ram?: number
           name: string
           nest_id?: number | null
+          page_path?: string | null
           slug: string
           startup_command?: string | null
           updated_at?: string
@@ -153,6 +157,7 @@ export type Database = {
           created_at?: string
           default_port?: number | null
           description?: string | null
+          display_type?: string
           docker_image?: string | null
           egg_id?: number | null
           id?: string
@@ -163,6 +168,7 @@ export type Database = {
           min_ram?: number
           name?: string
           nest_id?: number | null
+          page_path?: string | null
           slug?: string
           startup_command?: string | null
           updated_at?: string
