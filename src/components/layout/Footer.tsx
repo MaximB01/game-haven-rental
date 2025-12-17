@@ -79,14 +79,14 @@ const Footer = () => {
             <h4 className="font-semibold text-foreground mb-4">{t('footer.support')}</h4>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="text-muted-foreground hover:text-primary text-sm transition-colors">
+                <Link to="/faq" className="text-muted-foreground hover:text-primary text-sm transition-colors">
                   {t('footer.faq')}
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-muted-foreground hover:text-primary text-sm transition-colors">
+                <Link to="/knowledge-base" className="text-muted-foreground hover:text-primary text-sm transition-colors">
                   {t('footer.knowledgebase')}
-                </a>
+                </Link>
               </li>
               <li>
                 <Link to="/status" className="text-muted-foreground hover:text-primary text-sm transition-colors">
