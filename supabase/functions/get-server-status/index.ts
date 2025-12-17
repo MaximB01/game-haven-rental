@@ -22,7 +22,7 @@ serve(async (req) => {
       );
     }
 
-    const pterodactylUrl = Deno.env.get('PTERODACTYL_URL');
+    let pterodactylUrl = Deno.env.get('PTERODACTYL_URL');
     const pterodactylApiKey = Deno.env.get('PTERODACTYL_API_KEY');
 
     if (!pterodactylUrl || !pterodactylApiKey) {
@@ -31,6 +31,11 @@ serve(async (req) => {
         JSON.stringify({ error: 'Pterodactyl configuration missing' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Ensure URL has protocol
+    if (!pterodactylUrl.startsWith('http://') && !pterodactylUrl.startsWith('https://')) {
+      pterodactylUrl = `https://${pterodactylUrl}`;
     }
 
     console.log(`Fetching server status for identifier: ${identifier}`);
