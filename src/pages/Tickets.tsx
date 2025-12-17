@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Loader2, Plus, MessageSquare, Clock, ArrowLeft, Send } from 'lucide-react';
+import { Loader2, Plus, MessageSquare, Clock, ArrowLeft, Send, Archive, ArchiveRestore, UserCircle, MoreVertical } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,18 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Ticket {
   id: string;
@@ -30,6 +42,8 @@ interface Ticket {
   category: string;
   created_at: string;
   updated_at: string;
+  assigned_to: string | null;
+  is_archived: boolean;
 }
 
 interface TicketReply {
@@ -39,6 +53,12 @@ interface TicketReply {
   message: string;
   is_staff: boolean;
   created_at: string;
+}
+
+interface StaffMember {
+  user_id: string;
+  full_name: string | null;
+  email: string | null;
 }
 
 const Tickets = () => {
@@ -53,6 +73,9 @@ const Tickets = () => {
   const [sendingReply, setSendingReply] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [creatingTicket, setCreatingTicket] = useState(false);
+  const [isStaff, setIsStaff] = useState(false);
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [activeTab, setActiveTab] = useState('active');
   const [newTicket, setNewTicket] = useState({
     subject: '',
     description: '',
@@ -70,8 +93,39 @@ const Tickets = () => {
       navigate('/auth');
       return;
     }
+    
+    // Check if user is admin or moderator
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
+    
+    const hasStaffRole = roles?.some(r => r.role === 'admin' || r.role === 'moderator') || false;
+    setIsStaff(hasStaffRole);
+    
+    if (hasStaffRole) {
+      await fetchStaffMembers();
+    }
+    
     await fetchTickets();
     setLoading(false);
+  };
+
+  const fetchStaffMembers = async () => {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .in('role', ['admin', 'moderator']);
+    
+    if (error || !data) return;
+    
+    const userIds = data.map(r => r.user_id);
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, full_name, email')
+      .in('user_id', userIds);
+    
+    setStaffMembers(profiles || []);
   };
 
   const fetchTickets = async () => {
@@ -163,7 +217,7 @@ const Tickets = () => {
         ticket_id: selectedTicket.id,
         user_id: user.id,
         message: newReply.trim(),
-        is_staff: false,
+        is_staff: isStaff,
       });
 
     if (error) {
@@ -175,16 +229,113 @@ const Tickets = () => {
     } else {
       setNewReply('');
       await fetchReplies(selectedTicket.id);
-      // Update ticket status to awaiting_reply if it was open
-      if (selectedTicket.status === 'open') {
-        await supabase
-          .from('tickets')
-          .update({ status: 'awaiting_reply' })
-          .eq('id', selectedTicket.id);
-        await fetchTickets();
+      // Update ticket status based on who is replying
+      if (isStaff && selectedTicket.status === 'awaiting_reply') {
+        await handleUpdateStatus(selectedTicket.id, 'in_progress');
+      } else if (!isStaff && selectedTicket.status === 'open') {
+        await handleUpdateStatus(selectedTicket.id, 'awaiting_reply');
       }
     }
     setSendingReply(false);
+  };
+
+  const handleUpdateStatus = async (ticketId: string, status: Ticket['status']) => {
+    const { error } = await supabase
+      .from('tickets')
+      .update({ status })
+      .eq('id', ticketId);
+
+    if (error) {
+      toast({
+        title: language === 'nl' ? 'Fout' : 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: language === 'nl' ? 'Status bijgewerkt' : 'Status updated',
+      });
+      await fetchTickets();
+      if (selectedTicket?.id === ticketId) {
+        setSelectedTicket(prev => prev ? { ...prev, status } : null);
+      }
+    }
+  };
+
+  const handleUpdatePriority = async (ticketId: string, priority: Ticket['priority']) => {
+    const { error } = await supabase
+      .from('tickets')
+      .update({ priority })
+      .eq('id', ticketId);
+
+    if (error) {
+      toast({
+        title: language === 'nl' ? 'Fout' : 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: language === 'nl' ? 'Prioriteit bijgewerkt' : 'Priority updated',
+      });
+      await fetchTickets();
+      if (selectedTicket?.id === ticketId) {
+        setSelectedTicket(prev => prev ? { ...prev, priority } : null);
+      }
+    }
+  };
+
+  const handleAssignTicket = async (ticketId: string, assignedTo: string | null) => {
+    const { error } = await supabase
+      .from('tickets')
+      .update({ assigned_to: assignedTo })
+      .eq('id', ticketId);
+
+    if (error) {
+      toast({
+        title: language === 'nl' ? 'Fout' : 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: language === 'nl' ? 'Ticket toegewezen' : 'Ticket assigned',
+      });
+      await fetchTickets();
+      if (selectedTicket?.id === ticketId) {
+        setSelectedTicket(prev => prev ? { ...prev, assigned_to: assignedTo } : null);
+      }
+    }
+  };
+
+  const handleArchiveTicket = async (ticketId: string, archive: boolean) => {
+    const updateData: { is_archived: boolean; status?: 'closed' } = { is_archived: archive };
+    if (archive) {
+      updateData.status = 'closed';
+    }
+    
+    const { error } = await supabase
+      .from('tickets')
+      .update(updateData)
+      .eq('id', ticketId);
+
+    if (error) {
+      toast({
+        title: language === 'nl' ? 'Fout' : 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: archive 
+          ? (language === 'nl' ? 'Ticket gearchiveerd' : 'Ticket archived')
+          : (language === 'nl' ? 'Ticket hersteld' : 'Ticket restored'),
+      });
+      await fetchTickets();
+      if (selectedTicket?.id === ticketId) {
+        setSelectedTicket(null);
+      }
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -219,6 +370,16 @@ const Tickets = () => {
     return <Badge variant={variants[priority] || 'outline'}>{labels[priority] || priority}</Badge>;
   };
 
+  const getStaffName = (userId: string | null) => {
+    if (!userId) return null;
+    const staff = staffMembers.find(s => s.user_id === userId);
+    return staff?.full_name || staff?.email || userId;
+  };
+
+  const filteredTickets = tickets.filter(t => 
+    activeTab === 'archived' ? t.is_archived : !t.is_archived
+  );
+
   if (loading) {
     return (
       <Layout>
@@ -252,19 +413,30 @@ const Tickets = () => {
           <div className="lg:col-span-1 space-y-4">
             <Card>
               <CardHeader className="py-3">
-                <CardTitle className="text-lg">
-                  {language === 'nl' ? 'Mijn Tickets' : 'My Tickets'}
-                </CardTitle>
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList className="w-full">
+                    <TabsTrigger value="active" className="flex-1">
+                      {language === 'nl' ? 'Actief' : 'Active'}
+                    </TabsTrigger>
+                    <TabsTrigger value="archived" className="flex-1">
+                      <Archive className="h-4 w-4 mr-1" />
+                      {language === 'nl' ? 'Archief' : 'Archived'}
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </CardHeader>
               <CardContent className="p-0">
-                {tickets.length === 0 ? (
+                {filteredTickets.length === 0 ? (
                   <div className="p-6 text-center text-muted-foreground">
                     <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>{language === 'nl' ? 'Nog geen tickets' : 'No tickets yet'}</p>
+                    <p>{activeTab === 'archived' 
+                      ? (language === 'nl' ? 'Geen gearchiveerde tickets' : 'No archived tickets')
+                      : (language === 'nl' ? 'Nog geen tickets' : 'No tickets yet')
+                    }</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-border">
-                    {tickets.map((ticket) => (
+                    {filteredTickets.map((ticket) => (
                       <button
                         key={ticket.id}
                         onClick={() => handleSelectTicket(ticket)}
@@ -275,11 +447,17 @@ const Tickets = () => {
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-foreground truncate">{ticket.subject}</p>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
                               {getStatusBadge(ticket.status)}
                               {getPriorityBadge(ticket.priority)}
                             </div>
-                            <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                            {ticket.assigned_to && isStaff && (
+                              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                <UserCircle className="h-3 w-3" />
+                                {getStaffName(ticket.assigned_to)}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                               <Clock className="h-3 w-3" />
                               {new Date(ticket.updated_at).toLocaleDateString()}
                             </p>
@@ -299,7 +477,7 @@ const Tickets = () => {
               <Card className="h-[600px] flex flex-col">
                 <CardHeader className="border-b">
                   <div className="flex items-start justify-between">
-                    <div>
+                    <div className="flex-1">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -313,9 +491,110 @@ const Tickets = () => {
                       <CardDescription className="mt-2">
                         {selectedTicket.description}
                       </CardDescription>
+                      {selectedTicket.assigned_to && isStaff && (
+                        <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1">
+                          <UserCircle className="h-4 w-4" />
+                          {language === 'nl' ? 'Toegewezen aan:' : 'Assigned to:'} {getStaffName(selectedTicket.assigned_to)}
+                        </p>
+                      )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                       {getStatusBadge(selectedTicket.status)}
+                      {getPriorityBadge(selectedTicket.priority)}
+                      
+                      {/* Staff Actions */}
+                      {isStaff && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="icon">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56">
+                            <DropdownMenuLabel>
+                              {language === 'nl' ? 'Ticket Acties' : 'Ticket Actions'}
+                            </DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            
+                            {/* Status submenu */}
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger>
+                                {language === 'nl' ? 'Status wijzigen' : 'Change Status'}
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuSubContent>
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(selectedTicket.id, 'open')}>
+                                  {language === 'nl' ? 'Open' : 'Open'}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(selectedTicket.id, 'in_progress')}>
+                                  {language === 'nl' ? 'In behandeling' : 'In Progress'}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(selectedTicket.id, 'awaiting_reply')}>
+                                  {language === 'nl' ? 'Wacht op reactie' : 'Awaiting Reply'}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleUpdateStatus(selectedTicket.id, 'closed')}>
+                                  {language === 'nl' ? 'Gesloten' : 'Closed'}
+                                </DropdownMenuItem>
+                              </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+                            
+                            {/* Priority submenu */}
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger>
+                                {language === 'nl' ? 'Prioriteit wijzigen' : 'Change Priority'}
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuSubContent>
+                                <DropdownMenuItem onClick={() => handleUpdatePriority(selectedTicket.id, 'low')}>
+                                  {language === 'nl' ? 'Laag' : 'Low'}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleUpdatePriority(selectedTicket.id, 'medium')}>
+                                  {language === 'nl' ? 'Normaal' : 'Medium'}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleUpdatePriority(selectedTicket.id, 'high')}>
+                                  {language === 'nl' ? 'Hoog' : 'High'}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleUpdatePriority(selectedTicket.id, 'urgent')}>
+                                  {language === 'nl' ? 'Urgent' : 'Urgent'}
+                                </DropdownMenuItem>
+                              </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+                            
+                            {/* Assign submenu */}
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger>
+                                {language === 'nl' ? 'Toewijzen aan' : 'Assign to'}
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuSubContent>
+                                <DropdownMenuItem onClick={() => handleAssignTicket(selectedTicket.id, null)}>
+                                  {language === 'nl' ? 'Niemand' : 'Unassigned'}
+                                </DropdownMenuItem>
+                                {staffMembers.map(staff => (
+                                  <DropdownMenuItem 
+                                    key={staff.user_id}
+                                    onClick={() => handleAssignTicket(selectedTicket.id, staff.user_id)}
+                                  >
+                                    {staff.full_name || staff.email || staff.user_id}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+                            
+                            <DropdownMenuSeparator />
+                            
+                            {/* Archive/Restore */}
+                            {selectedTicket.is_archived ? (
+                              <DropdownMenuItem onClick={() => handleArchiveTicket(selectedTicket.id, false)}>
+                                <ArchiveRestore className="h-4 w-4 mr-2" />
+                                {language === 'nl' ? 'Herstellen uit archief' : 'Restore from archive'}
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => handleArchiveTicket(selectedTicket.id, true)}>
+                                <Archive className="h-4 w-4 mr-2" />
+                                {language === 'nl' ? 'Archiveren' : 'Archive'}
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -347,7 +626,7 @@ const Tickets = () => {
                     ))
                   )}
                 </CardContent>
-                {selectedTicket.status !== 'closed' && (
+                {selectedTicket.status !== 'closed' && !selectedTicket.is_archived && (
                   <div className="p-4 border-t">
                     <div className="flex gap-2">
                       <Textarea
