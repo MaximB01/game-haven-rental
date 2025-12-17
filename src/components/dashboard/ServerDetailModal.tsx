@@ -1,4 +1,4 @@
-import { ExternalLink, XCircle, Server, Calendar, CreditCard, Package } from 'lucide-react';
+import { ExternalLink, XCircle, Server, Calendar, CreditCard, Package, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -33,6 +33,8 @@ interface Order {
   price: number;
   status: string;
   created_at: string;
+  pterodactyl_server_id?: number;
+  pterodactyl_identifier?: string;
 }
 
 interface ServerDetailModalProps {
@@ -44,7 +46,7 @@ interface ServerDetailModalProps {
 
 const ServerDetailModal = ({ order, open, onOpenChange, onOrderUpdated }: ServerDetailModalProps) => {
   const { t } = useLanguage();
-  const [cancelling, setCancelling] = useState(false);
+  const [suspending, setSuspending] = useState(false);
 
   if (!order) return null;
 
@@ -57,36 +59,52 @@ const ServerDetailModal = ({ order, open, onOpenChange, onOrderUpdated }: Server
         return 'bg-yellow-500/20 text-yellow-500';
       case 'cancelled':
       case 'failed':
+      case 'suspended':
         return 'bg-red-500/20 text-red-500';
       default:
         return 'bg-muted text-muted-foreground';
     }
   };
 
-  const handleCancelServer = async () => {
-    setCancelling(true);
+  const handleSuspendServer = async () => {
+    setSuspending(true);
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: 'cancelled' })
-        .eq('id', order.id);
+      // Check if server has a Pterodactyl ID
+      if (order.pterodactyl_server_id) {
+        // Call the suspend edge function
+        const { data, error } = await supabase.functions.invoke('suspend-pterodactyl-server', {
+          body: {
+            orderId: order.id,
+            action: 'suspend'
+          }
+        });
 
-      if (error) throw error;
+        if (error) throw error;
+        if (!data?.success) throw new Error(data?.error || 'Failed to suspend server');
+      } else {
+        // No Pterodactyl ID, just update status locally
+        const { error } = await supabase
+          .from('orders')
+          .update({ status: 'suspended' })
+          .eq('id', order.id);
 
-      toast.success(t('dashboard.serverCancelled'));
+        if (error) throw error;
+      }
+
+      toast.success(t('dashboard.serverSuspended'));
       onOrderUpdated();
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error cancelling server:', error);
-      toast.error(t('dashboard.cancelError'));
+      console.error('Error suspending server:', error);
+      toast.error(t('dashboard.suspendError'));
     } finally {
-      setCancelling(false);
+      setSuspending(false);
     }
   };
 
-  const isGameServer = order.product_type === 'Game Server';
+  const isGameServer = order.product_type === 'game_server' || order.product_type === 'Game Server';
   const isActive = order.status === 'active';
-  const canCancel = order.status !== 'cancelled' && order.status !== 'failed';
+  const canSuspend = order.status === 'active';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -143,7 +161,7 @@ const ServerDetailModal = ({ order, open, onOpenChange, onOrderUpdated }: Server
               </Button>
             )}
 
-            {canCancel && (
+            {canSuspend && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
@@ -151,24 +169,31 @@ const ServerDetailModal = ({ order, open, onOpenChange, onOrderUpdated }: Server
                     className="w-full text-destructive border-destructive/50 hover:bg-destructive/10"
                   >
                     <XCircle className="h-4 w-4 mr-2" />
-                    {t('dashboard.cancelServer')}
+                    {t('dashboard.suspendServer')}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>{t('dashboard.cancelConfirmTitle')}</AlertDialogTitle>
+                    <AlertDialogTitle>{t('dashboard.suspendConfirmTitle')}</AlertDialogTitle>
                     <AlertDialogDescription>
-                      {t('dashboard.cancelConfirmDescription')}
+                      {t('dashboard.suspendConfirmDescription')}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
                     <AlertDialogAction
-                      onClick={handleCancelServer}
-                      disabled={cancelling}
+                      onClick={handleSuspendServer}
+                      disabled={suspending}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
-                      {cancelling ? t('common.loading') : t('dashboard.confirmCancel')}
+                      {suspending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          {t('common.loading')}
+                        </>
+                      ) : (
+                        t('dashboard.confirmSuspend')
+                      )}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>

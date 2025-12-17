@@ -22,6 +22,8 @@ export type Database = {
           price: number
           product_name: string
           product_type: string
+          pterodactyl_identifier: string | null
+          pterodactyl_server_id: number | null
           status: string
           updated_at: string
           user_id: string
@@ -33,6 +35,8 @@ export type Database = {
           price: number
           product_name: string
           product_type: string
+          pterodactyl_identifier?: string | null
+          pterodactyl_server_id?: number | null
           status?: string
           updated_at?: string
           user_id: string
@@ -44,6 +48,8 @@ export type Database = {
           price?: number
           product_name?: string
           product_type?: string
+          pterodactyl_identifier?: string | null
+          pterodactyl_server_id?: number | null
           status?: string
           updated_at?: string
           user_id?: string
