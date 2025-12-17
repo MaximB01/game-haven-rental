@@ -405,10 +405,12 @@ export type Database = {
       }
       tickets: {
         Row: {
+          assigned_to: string | null
           category: string
           created_at: string
           description: string
           id: string
+          is_archived: boolean
           priority: Database["public"]["Enums"]["ticket_priority"]
           status: Database["public"]["Enums"]["ticket_status"]
           subject: string
@@ -416,10 +418,12 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          assigned_to?: string | null
           category?: string
           created_at?: string
           description: string
           id?: string
+          is_archived?: boolean
           priority?: Database["public"]["Enums"]["ticket_priority"]
           status?: Database["public"]["Enums"]["ticket_status"]
           subject: string
@@ -427,10 +431,12 @@ export type Database = {
           user_id: string
         }
         Update: {
+          assigned_to?: string | null
           category?: string
           created_at?: string
           description?: string
           id?: string
+          is_archived?: boolean
           priority?: Database["public"]["Enums"]["ticket_priority"]
           status?: Database["public"]["Enums"]["ticket_status"]
           subject?: string
