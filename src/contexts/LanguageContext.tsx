@@ -181,6 +181,15 @@ const translations: Translations = {
   'order.status.active': { nl: 'Actief', en: 'Active' },
   'order.status.failed': { nl: 'Mislukt', en: 'Failed' },
   'order.status.cancelled': { nl: 'Geannuleerd', en: 'Cancelled' },
+  'order.status.suspended': { nl: 'Gesuspend', en: 'Suspended' },
+
+  // Suspend
+  'dashboard.suspendServer': { nl: 'Server Suspenderen', en: 'Suspend Server' },
+  'dashboard.suspendConfirmTitle': { nl: 'Server suspenderen?', en: 'Suspend server?' },
+  'dashboard.suspendConfirmDescription': { nl: 'Je staat op het punt om deze server te suspenderen. De server wordt gestopt en kan later weer geactiveerd worden.', en: 'You are about to suspend this server. The server will be stopped and can be reactivated later.' },
+  'dashboard.confirmSuspend': { nl: 'Ja, suspenderen', en: 'Yes, suspend' },
+  'dashboard.serverSuspended': { nl: 'Server is gesuspend', en: 'Server has been suspended' },
+  'dashboard.suspendError': { nl: 'Er ging iets mis bij het suspenderen', en: 'Something went wrong while suspending' },
 
   // Settings
   'settings.title': { nl: 'Instellingen', en: 'Settings' },

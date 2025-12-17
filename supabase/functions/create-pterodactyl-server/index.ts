@@ -243,11 +243,13 @@ serve(async (req) => {
     const serverId = createServerData.attributes.id;
     const serverIdentifier = createServerData.attributes.identifier;
 
-    // Step 4: Update order status in database
+    // Step 4: Update order status in database with server IDs
     const { error: updateError } = await supabase
       .from('orders')
       .update({ 
         status: 'active',
+        pterodactyl_server_id: serverId,
+        pterodactyl_identifier: serverIdentifier,
         updated_at: new Date().toISOString()
       })
       .eq('id', orderId);
