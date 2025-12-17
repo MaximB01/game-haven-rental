@@ -6,12 +6,55 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Pterodactyl egg IDs - these need to match your panel's configuration
-const GAME_EGGS: Record<string, { nestId: number; eggId: number; defaultStartup?: string }> = {
-  minecraft: { nestId: 1, eggId: 1 },
-  rust: { nestId: 4, eggId: 15 },
-  ark: { nestId: 2, eggId: 3 },
-  valheim: { nestId: 5, eggId: 20 },
+// Pterodactyl egg IDs and startup commands - adjust these to match your panel
+const GAME_EGGS: Record<string, { nestId: number; eggId: number; startup: string; dockerImage: string; environment: Record<string, string> }> = {
+  minecraft: { 
+    nestId: 1, 
+    eggId: 1,
+    startup: 'java -Xms128M -Xmx{{SERVER_MEMORY}}M -jar {{SERVER_JARFILE}}',
+    dockerImage: 'ghcr.io/pterodactyl/yolks:java_17',
+    environment: {
+      SERVER_JARFILE: 'server.jar',
+      VANILLA_VERSION: 'latest',
+      BUILD_NUMBER: 'latest'
+    }
+  },
+  rust: { 
+    nestId: 4, 
+    eggId: 15,
+    startup: './RustDedicated -batchmode +server.port {{SERVER_PORT}} +server.identity "rust" +rcon.port {{RCON_PORT}} +rcon.web true +server.hostname "{{HOSTNAME}}" +server.maxplayers {{MAX_PLAYERS}} +server.worldsize {{WORLD_SIZE}} +server.saveinterval {{SAVE_INTERVAL}}',
+    dockerImage: 'ghcr.io/pterodactyl/games:rust',
+    environment: {
+      HOSTNAME: 'Rust Server',
+      MAX_PLAYERS: '50',
+      WORLD_SIZE: '3000',
+      SAVE_INTERVAL: '60'
+    }
+  },
+  ark: { 
+    nestId: 2, 
+    eggId: 3,
+    startup: './ShooterGame/Binaries/Linux/ShooterGameServer {{SERVER_MAP}}?listen?SessionName={{SESSION_NAME}}?ServerPassword={{SERVER_PASSWORD}}?ServerAdminPassword={{ADMIN_PASSWORD}}?Port={{SERVER_PORT}}?QueryPort={{QUERY_PORT}}?MaxPlayers={{MAX_PLAYERS}} -server -log',
+    dockerImage: 'ghcr.io/pterodactyl/games:source',
+    environment: {
+      SERVER_MAP: 'TheIsland',
+      SESSION_NAME: 'ARK Server',
+      SERVER_PASSWORD: '',
+      ADMIN_PASSWORD: 'changeme',
+      MAX_PLAYERS: '70'
+    }
+  },
+  valheim: { 
+    nestId: 5, 
+    eggId: 20,
+    startup: './valheim_server.x86_64 -name "{{SERVER_NAME}}" -port {{SERVER_PORT}} -world "{{WORLD_NAME}}" -password "{{SERVER_PASSWORD}}" -public 1',
+    dockerImage: 'ghcr.io/pterodactyl/games:source',
+    environment: {
+      SERVER_NAME: 'Valheim Server',
+      WORLD_NAME: 'Dedicated',
+      SERVER_PASSWORD: 'changeme'
+    }
+  },
 };
 
 interface OrderRequest {
@@ -158,9 +201,9 @@ serve(async (req) => {
       name: serverName,
       user: pterodactylUserId,
       egg: gameEgg.eggId,
-      docker_image: 'ghcr.io/pterodactyl/yolks:java_17', // Default, will be overridden by egg
-      startup: gameEgg.defaultStartup || '',
-      environment: {},
+      docker_image: gameEgg.dockerImage,
+      startup: gameEgg.startup,
+      environment: gameEgg.environment,
       limits: {
         memory: ramInMB,
         swap: 0,
