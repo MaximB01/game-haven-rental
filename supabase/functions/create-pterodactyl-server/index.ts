@@ -72,6 +72,8 @@ interface OrderRequest {
   nestId?: number;
   dockerImage?: string;
   startupCommand?: string;
+  // Optional game-specific config
+  minecraftVersion?: string;
 }
 
 serve(async (req) => {
@@ -102,7 +104,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
-    const { orderId, gameId, planName, ram, cpu, disk, userId, userEmail, variantId, eggId, nestId, dockerImage, startupCommand }: OrderRequest = await req.json();
+    const { orderId, gameId, planName, ram, cpu, disk, userId, userEmail, variantId, eggId, nestId, dockerImage, startupCommand, minecraftVersion }: OrderRequest = await req.json();
 
     console.log(`Processing order ${orderId} for game ${gameId}, plan ${planName}`);
     console.log(`Resources - RAM: ${ram}MB, CPU: ${cpu}%, Disk: ${disk}MB`);
@@ -206,11 +208,20 @@ serve(async (req) => {
     const finalEggId = eggId || gameEgg?.eggId || 1;
     const finalDockerImage = dockerImage || gameEgg?.dockerImage || 'ghcr.io/pterodactyl/yolks:java_17';
     const finalStartup = startupCommand || gameEgg?.startup || 'java -Xms128M -Xmx{{SERVER_MEMORY}}M -jar {{SERVER_JARFILE}}';
-    const finalEnvironment = gameEgg?.environment || {
+    const baseEnvironment = gameEgg?.environment || {
       SERVER_JARFILE: 'server.jar',
       VANILLA_VERSION: 'latest',
       BUILD_NUMBER: 'latest'
     };
+
+    // Clone to avoid mutating shared constants
+    const finalEnvironment: Record<string, string> = { ...baseEnvironment };
+
+    // Apply optional Minecraft version (supports common env var names)
+    if (minecraftVersion && gameId === 'minecraft') {
+      finalEnvironment.VANILLA_VERSION = minecraftVersion;
+      finalEnvironment.MINECRAFT_VERSION = minecraftVersion;
+    }
 
     // Values from database are already in MB, no conversion needed
     const createServerPayload = {

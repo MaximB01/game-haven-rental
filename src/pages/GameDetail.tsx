@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import minecraftImg from '@/assets/games/minecraft.jpg';
 import rustImg from '@/assets/games/rust.jpg';
 import valheimImg from '@/assets/games/valheim.jpg';
@@ -72,7 +73,7 @@ const GameDetail = () => {
   const [plans, setPlans] = useState<ProductPlan[]>([]);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
-
+  const [minecraftVersion, setMinecraftVersion] = useState<string>('latest');
   useEffect(() => {
     if (gameId) {
       fetchProductData(gameId);
@@ -199,6 +200,7 @@ const GameDetail = () => {
             nestId: selectedVariantData?.nest_id || product.nest_id,
             dockerImage: selectedVariantData?.docker_image,
             startupCommand: selectedVariantData?.startup_command,
+            minecraftVersion: gameId === 'minecraft' ? minecraftVersion : undefined,
           },
         }
       );
@@ -307,47 +309,89 @@ const GameDetail = () => {
         </div>
       </section>
 
-      {/* Variant Selection */}
-      {variants.length > 0 && (
+      {/* Server Type Selection (Egg) */}
+      {(variants.length > 0 || gameId === 'minecraft') && (
         <section className="py-8 border-b border-border">
           <div className="container mx-auto px-4">
             <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
               <Server className="h-5 w-5 text-primary" />
               {language === 'nl' ? 'Kies je server type' : 'Choose your server type'}
             </h2>
-            <RadioGroup
-              value={selectedVariant || ''}
-              onValueChange={setSelectedVariant}
-              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-            >
-              {variants.map((variant) => (
-                <div key={variant.id} className="relative">
-                  <RadioGroupItem
-                    value={variant.id}
-                    id={variant.id}
-                    className="peer sr-only"
-                    disabled={isUnavailable}
-                  />
-                  <Label
-                    htmlFor={variant.id}
-                    className={`flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all
-                      ${isUnavailable ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary/50'}
-                      peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5
-                      ${selectedVariant === variant.id ? 'border-primary bg-primary/5' : 'border-border'}`}
-                  >
-                    <span className="font-semibold text-foreground">{variant.name}</span>
-                    {variant.description && (
-                      <span className="text-sm text-muted-foreground mt-1">{variant.description}</span>
-                    )}
-                    {variant.is_default && (
-                      <span className="text-xs text-primary mt-2">
-                        {language === 'nl' ? 'Aanbevolen' : 'Recommended'}
-                      </span>
-                    )}
-                  </Label>
-                </div>
-              ))}
-            </RadioGroup>
+
+            {variants.length > 0 ? (
+              <RadioGroup
+                value={selectedVariant || ''}
+                onValueChange={setSelectedVariant}
+                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+              >
+                {variants.map((variant) => (
+                  <div key={variant.id} className="relative">
+                    <RadioGroupItem
+                      value={variant.id}
+                      id={variant.id}
+                      className="peer sr-only"
+                      disabled={isUnavailable}
+                    />
+                    <Label
+                      htmlFor={variant.id}
+                      className={`flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all
+                        ${isUnavailable ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary/50'}
+                        peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5
+                        ${selectedVariant === variant.id ? 'border-primary bg-primary/5' : 'border-border'}`}
+                    >
+                      <span className="font-semibold text-foreground">{variant.name}</span>
+                      {variant.description && (
+                        <span className="text-sm text-muted-foreground mt-1">{variant.description}</span>
+                      )}
+                      {variant.is_default && (
+                        <span className="text-xs text-primary mt-2">
+                          {language === 'nl' ? 'Aanbevolen' : 'Recommended'}
+                        </span>
+                      )}
+                    </Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {language === 'nl'
+                  ? 'Op dit moment is er maar één server type beschikbaar voor dit product.'
+                  : 'At the moment there is only one server type available for this product.'}
+              </p>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Minecraft Version Selection */}
+      {gameId === 'minecraft' && (
+        <section className="py-8 border-b border-border">
+          <div className="container mx-auto px-4">
+            <h2 className="text-xl font-bold text-foreground mb-4">
+              {language === 'nl' ? 'Kies je Minecraft versie' : 'Choose your Minecraft version'}
+            </h2>
+
+            <div className="max-w-xs">
+              <Select value={minecraftVersion} onValueChange={setMinecraftVersion} disabled={isUnavailable}>
+                <SelectTrigger>
+                  <SelectValue placeholder={language === 'nl' ? 'Selecteer een versie' : 'Select a version'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="latest">latest</SelectItem>
+                  <SelectItem value="1.21.4">1.21.4</SelectItem>
+                  <SelectItem value="1.21.3">1.21.3</SelectItem>
+                  <SelectItem value="1.21.1">1.21.1</SelectItem>
+                  <SelectItem value="1.20.6">1.20.6</SelectItem>
+                  <SelectItem value="1.20.4">1.20.4</SelectItem>
+                  <SelectItem value="1.19.4">1.19.4</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground mt-2">
+                {language === 'nl'
+                  ? 'Tip: als je egg geen versiekeuze ondersteunt, wordt deze instelling genegeerd.'
+                  : 'Tip: if your egg does not support version selection, this setting is ignored.'}
+              </p>
+            </div>
           </div>
         </section>
       )}
