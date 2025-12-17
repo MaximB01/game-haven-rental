@@ -129,6 +129,7 @@ export type Database = {
           page_path: string | null
           slug: string
           startup_command: string | null
+          temporarily_unavailable: boolean
           updated_at: string
         }
         Insert: {
@@ -150,6 +151,7 @@ export type Database = {
           page_path?: string | null
           slug: string
           startup_command?: string | null
+          temporarily_unavailable?: boolean
           updated_at?: string
         }
         Update: {
@@ -171,6 +173,7 @@ export type Database = {
           page_path?: string | null
           slug?: string
           startup_command?: string | null
+          temporarily_unavailable?: boolean
           updated_at?: string
         }
         Relationships: []

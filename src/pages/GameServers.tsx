@@ -28,6 +28,7 @@ interface Product {
   category: string;
   display_type: string;
   is_active: boolean;
+  temporarily_unavailable: boolean;
 }
 
 interface ProductPlan {
@@ -159,11 +160,23 @@ const GameServers = () => {
             {filteredProducts.map((product) => (
               <Link
                 key={product.id}
-                to={`/game-servers/${product.slug}`}
-                className="group overflow-hidden rounded-2xl bg-card border border-border hover-lift"
+                to={product.temporarily_unavailable ? '#' : `/game-servers/${product.slug}`}
+                onClick={(e) => product.temporarily_unavailable && e.preventDefault()}
+                className={`group overflow-hidden rounded-2xl bg-card border border-border hover-lift relative ${
+                  product.temporarily_unavailable ? 'opacity-75 cursor-not-allowed' : ''
+                }`}
               >
+                {/* Temporarily unavailable badge */}
+                {product.temporarily_unavailable && (
+                  <div className="absolute top-4 right-4 z-10">
+                    <span className="px-3 py-1 text-xs font-medium bg-destructive text-destructive-foreground rounded-full">
+                      {language === 'nl' ? 'Tijdelijk niet beschikbaar' : 'Temporarily unavailable'}
+                    </span>
+                  </div>
+                )}
+                
                 {/* Image */}
-                <div className="aspect-[4/3] overflow-hidden">
+                <div className={`aspect-[4/3] overflow-hidden ${product.temporarily_unavailable ? 'grayscale' : ''}`}>
                   <img
                     src={getProductImage(product)}
                     alt={product.name}
@@ -185,9 +198,16 @@ const GameServers = () => {
                         <span className="text-sm font-normal text-muted-foreground">{t('games.perMonth')}</span>
                       </p>
                     </div>
-                    <Button size="sm" className="gaming-gradient-bg hover:opacity-90">
-                      {t('games.configure')}
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                    <Button 
+                      size="sm" 
+                      className={product.temporarily_unavailable ? '' : 'gaming-gradient-bg hover:opacity-90'}
+                      variant={product.temporarily_unavailable ? 'outline' : 'default'}
+                      disabled={product.temporarily_unavailable}
+                    >
+                      {product.temporarily_unavailable 
+                        ? (language === 'nl' ? 'Niet beschikbaar' : 'Unavailable')
+                        : t('games.configure')}
+                      {!product.temporarily_unavailable && <ArrowRight className="ml-2 h-4 w-4" />}
                     </Button>
                   </div>
                 </div>

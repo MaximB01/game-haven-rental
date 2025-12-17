@@ -38,6 +38,7 @@ interface Product {
   image_url: string | null;
   category: string;
   is_active: boolean;
+  temporarily_unavailable: boolean;
   min_ram: number;
   min_cpu: number;
   min_disk: number;
@@ -96,6 +97,7 @@ const Admin = () => {
     image_url: '',
     category: 'game',
     is_active: true,
+    temporarily_unavailable: false,
     min_ram: 2048,
     min_cpu: 100,
     min_disk: 10240,
@@ -350,6 +352,7 @@ const Admin = () => {
       image_url: '',
       category: 'game',
       is_active: true,
+      temporarily_unavailable: false,
       min_ram: 2048,
       min_cpu: 100,
       min_disk: 10240,
@@ -387,6 +390,7 @@ const Admin = () => {
       image_url: product.image_url || '',
       category: product.category,
       is_active: product.is_active,
+      temporarily_unavailable: product.temporarily_unavailable || false,
       min_ram: product.min_ram,
       min_cpu: product.min_cpu,
       min_disk: product.min_disk,
@@ -1146,6 +1150,13 @@ const Admin = () => {
                   onCheckedChange={(v) => setProductForm({ ...productForm, is_active: v })}
                 />
                 <Label>{t('admin.active')}</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={productForm.temporarily_unavailable}
+                  onCheckedChange={(v) => setProductForm({ ...productForm, temporarily_unavailable: v })}
+                />
+                <Label>Tijdelijk niet beschikbaar</Label>
               </div>
             </div>
             <DialogFooter>
