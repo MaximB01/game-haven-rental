@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.suspend-pterodactyl-server]
 verify_jwt = true
+
+[functions.get-server-status]
+verify_jwt = true
