@@ -17,6 +17,7 @@ import {
 interface DynamicProduct {
   id: string;
   name: string;
+  slug: string;
   page_path: string | null;
   display_type: string;
 }
@@ -36,7 +37,7 @@ const Navbar = () => {
     const fetchDynamicProducts = async () => {
       const { data } = await supabase
         .from('products')
-        .select('id, name, page_path, display_type')
+        .select('id, name, slug, page_path, display_type')
         .eq('display_type', 'own_page')
         .eq('is_active', true)
         .order('name');
@@ -95,12 +96,21 @@ const Navbar = () => {
   };
 
   // Build navigation links dynamically
+  const getProductPath = (product: DynamicProduct) => {
+    // If page_path contains {slug}, replace it with actual slug
+    if (product.page_path?.includes('{slug}')) {
+      return product.page_path.replace('{slug}', product.slug);
+    }
+    // Use page_path if it's a valid path, otherwise use /product/slug
+    return product.page_path || `/product/${product.slug}`;
+  };
+
   const navLinks = [
     { href: '/', label: t('nav.home') },
     { href: '/game-servers', label: t('nav.gameServers') },
     // Add dynamic product pages
     ...dynamicProducts.map(product => ({
-      href: product.page_path || `/product/${product.id}`,
+      href: getProductPath(product),
       label: product.name
     })),
     { href: '/about', label: t('nav.about') },
