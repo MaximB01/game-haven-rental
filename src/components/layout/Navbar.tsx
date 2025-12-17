@@ -1,20 +1,38 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ChevronDown, Globe, Sun, Moon, User } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, ChevronDown, Globe, Sun, Moon, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
   const { language, setLanguage, t } = useLanguage();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -42,6 +60,26 @@ const Navbar = () => {
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast.success(t('auth.logoutSuccess'));
+      navigate('/');
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const getUserDisplayName = () => {
+    if (user?.user_metadata?.full_name) {
+      return user.user_metadata.full_name;
+    }
+    if (user?.email) {
+      return user.email.split('@')[0];
+    }
+    return t('nav.account');
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass-effect">
@@ -99,15 +137,41 @@ const Navbar = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Link to="/auth">
-              <Button variant="ghost" size="sm">
-                <User className="h-4 w-4 mr-2" />
-                {t('nav.login')}
-              </Button>
-            </Link>
-            <Button size="sm" className="gaming-gradient-bg hover:opacity-90">
-              {t('nav.getStarted')}
-            </Button>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2">
+                    <User className="h-4 w-4" />
+                    {getUserDisplayName()}
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover">
+                  <DropdownMenuItem onClick={() => navigate('/dashboard')}>
+                    {t('nav.dashboard')}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    {t('auth.logout')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Link to="/auth">
+                  <Button variant="ghost" size="sm">
+                    <User className="h-4 w-4 mr-2" />
+                    {t('nav.login')}
+                  </Button>
+                </Link>
+                <Link to="/game-servers">
+                  <Button size="sm" className="gaming-gradient-bg hover:opacity-90">
+                    {t('nav.getStarted')}
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -153,15 +217,34 @@ const Navbar = () => {
                 </Button>
               </div>
               <div className="flex flex-col gap-2 px-4 pt-2">
-                <Link to="/auth" onClick={() => setIsOpen(false)}>
-                  <Button variant="ghost" size="sm" className="justify-start w-full">
-                    <User className="h-4 w-4 mr-2" />
-                    {t('nav.login')}
-                  </Button>
-                </Link>
-                <Button size="sm" className="gaming-gradient-bg hover:opacity-90">
-                  {t('nav.getStarted')}
-                </Button>
+                {user ? (
+                  <>
+                    <Link to="/dashboard" onClick={() => setIsOpen(false)}>
+                      <Button variant="ghost" size="sm" className="justify-start w-full">
+                        <User className="h-4 w-4 mr-2" />
+                        {getUserDisplayName()}
+                      </Button>
+                    </Link>
+                    <Button variant="ghost" size="sm" onClick={handleLogout} className="justify-start w-full">
+                      <LogOut className="h-4 w-4 mr-2" />
+                      {t('auth.logout')}
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/auth" onClick={() => setIsOpen(false)}>
+                      <Button variant="ghost" size="sm" className="justify-start w-full">
+                        <User className="h-4 w-4 mr-2" />
+                        {t('nav.login')}
+                      </Button>
+                    </Link>
+                    <Link to="/game-servers" onClick={() => setIsOpen(false)}>
+                      <Button size="sm" className="gaming-gradient-bg hover:opacity-90 w-full">
+                        {t('nav.getStarted')}
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>

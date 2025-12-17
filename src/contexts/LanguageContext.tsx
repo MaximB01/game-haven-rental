@@ -20,6 +20,8 @@ const translations: Translations = {
   'nav.contact': { nl: 'Contact', en: 'Contact' },
   'nav.login': { nl: 'Inloggen', en: 'Login' },
   'nav.getStarted': { nl: 'Aan de slag', en: 'Get Started' },
+  'nav.account': { nl: 'Account', en: 'Account' },
+  'nav.dashboard': { nl: 'Dashboard', en: 'Dashboard' },
 
   // Hero
   'hero.announcement': { nl: '🎮 Nieuw: Valheim servers nu beschikbaar!', en: '🎮 New: Valheim servers now available!' },
@@ -157,6 +159,10 @@ const translations: Translations = {
   'dashboard.price': { nl: 'Prijs', en: 'Price' },
   'dashboard.status': { nl: 'Status', en: 'Status' },
   'dashboard.date': { nl: 'Datum', en: 'Date' },
+  'dashboard.actions': { nl: 'Acties', en: 'Actions' },
+  'dashboard.manageServer': { nl: 'Beheer Server', en: 'Manage Server' },
+  'dashboard.serverPanel': { nl: 'Server Paneel', en: 'Server Panel' },
+  'dashboard.viewDetails': { nl: 'Details', en: 'Details' },
 
   // Order Status
   'order.status.pending': { nl: 'In behandeling', en: 'Pending' },

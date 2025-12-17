@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Package, LogOut, Settings, Server } from 'lucide-react';
+import { User, Package, LogOut, Settings, Server, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import Layout from '@/components/layout/Layout';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
+
+// Pterodactyl panel URL - should match the one in edge function
+const PTERODACTYL_PANEL_URL = 'https://panel.smpmetdeboys.be';
 
 interface Order {
   id: string;
@@ -78,12 +81,18 @@ const Dashboard = () => {
       case 'active':
         return 'bg-green-500/20 text-green-500';
       case 'pending':
+      case 'provisioning':
         return 'bg-yellow-500/20 text-yellow-500';
       case 'cancelled':
+      case 'failed':
         return 'bg-red-500/20 text-red-500';
       default:
         return 'bg-muted text-muted-foreground';
     }
+  };
+
+  const getStatusText = (status: string) => {
+    return t(`order.status.${status}`) || status;
   };
 
   if (loading) {
@@ -186,6 +195,7 @@ const Dashboard = () => {
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.price')}</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.status')}</th>
                       <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.date')}</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.actions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -199,11 +209,39 @@ const Dashboard = () => {
                         <td className="py-3 px-4 text-foreground">€{order.price.toFixed(2)}/mo</td>
                         <td className="py-3 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                            {order.status}
+                            {getStatusText(order.status)}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-muted-foreground">
                           {new Date(order.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="py-3 px-4">
+                          {order.status === 'active' && order.product_type === 'Game Server' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(PTERODACTYL_PANEL_URL, '_blank')}
+                              className="gap-2"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              {t('dashboard.manageServer')}
+                            </Button>
+                          )}
+                          {order.status === 'provisioning' && (
+                            <span className="text-sm text-muted-foreground">
+                              {t('order.status.provisioning')}...
+                            </span>
+                          )}
+                          {order.status === 'failed' && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate('/contact')}
+                              className="text-destructive border-destructive/50 hover:bg-destructive/10"
+                            >
+                              Contact Support
+                            </Button>
+                          )}
                         </td>
                       </tr>
                     ))}
