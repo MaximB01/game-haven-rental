@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Package, LogOut, Settings, Server, ExternalLink } from 'lucide-react';
+import { User, Package, LogOut, Settings, Server } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import Layout from '@/components/layout/Layout';
+import ServerDetailModal from '@/components/dashboard/ServerDetailModal';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
-
-// Pterodactyl panel URL - should match the one in edge function
-const PTERODACTYL_PANEL_URL = 'https://panel.smpmetdeboys.be';
 
 interface Order {
   id: string;
@@ -25,6 +23,8 @@ const Dashboard = () => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const { t } = useLanguage();
   const navigate = useNavigate();
 
@@ -200,7 +200,14 @@ const Dashboard = () => {
                   </thead>
                   <tbody>
                     {orders.map((order) => (
-                      <tr key={order.id} className="border-b border-border/50 hover:bg-muted/30">
+                      <tr 
+                        key={order.id} 
+                        className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors"
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setModalOpen(true);
+                        }}
+                      >
                         <td className="py-3 px-4">
                           <div className="font-medium text-foreground">{order.product_name}</div>
                           <div className="text-sm text-muted-foreground">{order.product_type}</div>
@@ -216,32 +223,17 @@ const Dashboard = () => {
                           {new Date(order.created_at).toLocaleDateString()}
                         </td>
                         <td className="py-3 px-4">
-                          {order.status === 'active' && order.product_type === 'Game Server' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => window.open(PTERODACTYL_PANEL_URL, '_blank')}
-                              className="gap-2"
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              {t('dashboard.manageServer')}
-                            </Button>
-                          )}
-                          {order.status === 'provisioning' && (
-                            <span className="text-sm text-muted-foreground">
-                              {t('order.status.provisioning')}...
-                            </span>
-                          )}
-                          {order.status === 'failed' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate('/contact')}
-                              className="text-destructive border-destructive/50 hover:bg-destructive/10"
-                            >
-                              Contact Support
-                            </Button>
-                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedOrder(order);
+                              setModalOpen(true);
+                            }}
+                          >
+                            {t('dashboard.viewDetails')}
+                          </Button>
                         </td>
                       </tr>
                     ))}
@@ -252,6 +244,15 @@ const Dashboard = () => {
           </div>
         </div>
       </section>
+
+      <ServerDetailModal
+        order={selectedOrder}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        onOrderUpdated={() => {
+          if (user) fetchOrders(user.id);
+        }}
+      />
     </Layout>
   );
 };
