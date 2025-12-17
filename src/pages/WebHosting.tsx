@@ -1,39 +1,85 @@
-import { Check, Globe, HardDrive, Mail, Shield } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Check, Globe, HardDrive, Mail, Shield, Loader2 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { supabase } from '@/integrations/supabase/client';
+
+interface ProductPlan {
+  id: string;
+  name: string;
+  price: number;
+  ram: number;
+  cpu: number;
+  disk: number;
+  databases: number;
+}
 
 const WebHosting = () => {
   const { t, language } = useLanguage();
+  const [plans, setPlans] = useState<ProductPlan[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const plans = [
-    {
-      name: 'Starter',
-      websites: 1,
-      storage: 10,
-      email: 5,
-      price: 2.99,
-    },
-    {
-      name: 'Business',
-      websites: 10,
-      storage: 50,
-      email: 25,
-      price: 7.99,
-      popular: true,
-    },
-    {
-      name: 'Enterprise',
-      websites: language === 'nl' ? 'Onbeperkt' : 'Unlimited',
-      storage: 100,
-      email: 100,
-      price: 14.99,
-    },
-  ];
+  useEffect(() => {
+    fetchPlans();
+  }, []);
+
+  const fetchPlans = async () => {
+    // First get the Web Hosting product
+    const { data: product } = await supabase
+      .from('products')
+      .select('id')
+      .eq('slug', 'web-hosting')
+      .maybeSingle();
+
+    if (product) {
+      const { data: plansData } = await supabase
+        .from('product_plans')
+        .select('*')
+        .eq('product_id', product.id)
+        .eq('is_active', true)
+        .order('price', { ascending: true });
+
+      if (plansData) setPlans(plansData as ProductPlan[]);
+    }
+    setLoading(false);
+  };
 
   const features = language === 'nl'
     ? ['Gratis SSL certificaat', 'cPanel toegang', 'One-click WordPress', 'Dagelijkse backups', '99.9% uptime', 'Gratis migratie']
     : ['Free SSL certificate', 'cPanel access', 'One-click WordPress', 'Daily backups', '99.9% uptime', 'Free migration'];
+
+  // Mark the second plan as popular
+  const plansWithPopular = plans.map((plan, index) => ({
+    ...plan,
+    popular: index === 1,
+  }));
+
+  // Calculate websites based on database count or plan index
+  const getWebsites = (plan: ProductPlan, index: number) => {
+    if (index === 0) return '1';
+    if (index === 1) return '10';
+    if (index === 2) return '25';
+    return language === 'nl' ? 'Onbeperkt' : 'Unlimited';
+  };
+
+  // Calculate email accounts based on plan
+  const getEmailAccounts = (plan: ProductPlan, index: number) => {
+    if (index === 0) return 5;
+    if (index === 1) return 25;
+    if (index === 2) return 50;
+    return 100;
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -58,10 +104,10 @@ const WebHosting = () => {
       {/* Pricing */}
       <section className="py-16">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {plans.map((plan, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+            {plansWithPopular.map((plan, index) => (
               <div
-                key={index}
+                key={plan.id}
                 className={`relative rounded-2xl bg-card border p-8 hover-lift ${
                   plan.popular ? 'border-primary ring-2 ring-primary/20' : 'border-border'
                 }`}
@@ -81,15 +127,15 @@ const WebHosting = () => {
                 <ul className="space-y-4 mb-8">
                   <li className="flex items-center gap-3 text-muted-foreground">
                     <Globe className="h-5 w-5 text-primary" />
-                    {plan.websites} {language === 'nl' ? 'websites' : 'websites'}
+                    {getWebsites(plan, index)} {language === 'nl' ? 'websites' : 'websites'}
                   </li>
                   <li className="flex items-center gap-3 text-muted-foreground">
                     <HardDrive className="h-5 w-5 text-primary" />
-                    {plan.storage} GB SSD
+                    {(plan.disk / 1024).toFixed(0)} GB SSD
                   </li>
                   <li className="flex items-center gap-3 text-muted-foreground">
                     <Mail className="h-5 w-5 text-primary" />
-                    {plan.email} {language === 'nl' ? 'e-mail accounts' : 'email accounts'}
+                    {getEmailAccounts(plan, index)} {language === 'nl' ? 'e-mail accounts' : 'email accounts'}
                   </li>
                   <li className="flex items-center gap-3 text-muted-foreground">
                     <Shield className="h-5 w-5 text-primary" />
