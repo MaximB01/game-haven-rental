@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, MessageSquare, Send } from 'lucide-react';
 import ProductImageUpload from '@/components/admin/ProductImageUpload';
 import {
   Dialog,
@@ -79,10 +79,31 @@ interface ProductVariant {
   sort_order: number;
 }
 
+interface Ticket {
+  id: string;
+  user_id: string;
+  subject: string;
+  description: string;
+  status: 'open' | 'in_progress' | 'awaiting_reply' | 'closed';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  category: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface TicketReply {
+  id: string;
+  ticket_id: string;
+  user_id: string;
+  message: string;
+  is_staff: boolean;
+  created_at: string;
+}
+
 const Admin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
@@ -105,6 +126,14 @@ const Admin = () => {
   const [editingVariant, setEditingVariant] = useState<ProductVariant | null>(null);
   const [expandedProducts, setExpandedProducts] = useState<string[]>([]);
   const [productVariants, setProductVariants] = useState<ProductVariant[]>([]);
+  
+  // Ticket state
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [ticketReplies, setTicketReplies] = useState<TicketReply[]>([]);
+  const [newTicketReply, setNewTicketReply] = useState('');
+  const [sendingReply, setSendingReply] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // Product form state
   const [productForm, setProductForm] = useState({
@@ -165,12 +194,20 @@ const Admin = () => {
       return;
     }
 
+    setCurrentUserId(user.id);
+
+    // Check for admin OR moderator role
     const { data: hasAdminRole } = await supabase.rpc('has_role', {
       _user_id: user.id,
       _role: 'admin'
     });
 
-    if (!hasAdminRole) {
+    const { data: hasModeratorRole } = await supabase.rpc('has_role', {
+      _user_id: user.id,
+      _role: 'moderator'
+    });
+
+    if (!hasAdminRole && !hasModeratorRole) {
       toast({
         title: t('admin.accessDenied'),
         description: t('admin.noPermission'),
@@ -181,7 +218,7 @@ const Admin = () => {
     }
 
     setIsAdmin(true);
-    await Promise.all([fetchUsers(), fetchOrders(), fetchUserRoles(), fetchProducts(), fetchProductPlans(), fetchProductVariants()]);
+    await Promise.all([fetchUsers(), fetchOrders(), fetchUserRoles(), fetchProducts(), fetchProductPlans(), fetchProductVariants(), fetchTickets()]);
     setLoading(false);
   };
 
@@ -236,6 +273,120 @@ const Admin = () => {
       .order('sort_order', { ascending: true });
     
     if (data) setProductVariants(data as ProductVariant[]);
+  };
+
+  const fetchTickets = async () => {
+    const { data } = await supabase
+      .from('tickets')
+      .select('*')
+      .order('updated_at', { ascending: false });
+    
+    if (data) setTickets(data as Ticket[]);
+  };
+
+  const fetchTicketReplies = async (ticketId: string) => {
+    const { data } = await supabase
+      .from('ticket_replies')
+      .select('*')
+      .eq('ticket_id', ticketId)
+      .order('created_at', { ascending: true });
+    
+    if (data) setTicketReplies(data as TicketReply[]);
+  };
+
+  const handleSelectTicket = async (ticket: Ticket) => {
+    setSelectedTicket(ticket);
+    await fetchTicketReplies(ticket.id);
+  };
+
+  const handleSendTicketReply = async () => {
+    if (!selectedTicket || !newTicketReply.trim() || !currentUserId) return;
+
+    setSendingReply(true);
+    const { error } = await supabase
+      .from('ticket_replies')
+      .insert({
+        ticket_id: selectedTicket.id,
+        user_id: currentUserId,
+        message: newTicketReply.trim(),
+        is_staff: true,
+      });
+
+    if (error) {
+      toast({
+        title: language === 'nl' ? 'Fout' : 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      setNewTicketReply('');
+      await fetchTicketReplies(selectedTicket.id);
+      // Update ticket status to in_progress if it was open or awaiting_reply
+      if (selectedTicket.status === 'open' || selectedTicket.status === 'awaiting_reply') {
+        await supabase
+          .from('tickets')
+          .update({ status: 'in_progress' })
+          .eq('id', selectedTicket.id);
+        await fetchTickets();
+        setSelectedTicket({ ...selectedTicket, status: 'in_progress' });
+      }
+    }
+    setSendingReply(false);
+  };
+
+  const handleUpdateTicketStatus = async (ticketId: string, status: Ticket['status']) => {
+    const { error } = await supabase
+      .from('tickets')
+      .update({ status: status as any })
+      .eq('id', ticketId);
+
+    if (error) {
+      toast({
+        title: language === 'nl' ? 'Fout' : 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: language === 'nl' ? 'Status bijgewerkt' : 'Status updated',
+      });
+      await fetchTickets();
+      if (selectedTicket?.id === ticketId) {
+        setSelectedTicket({ ...selectedTicket, status: status as Ticket['status'] });
+      }
+    }
+  };
+
+  const getTicketStatusBadge = (status: string) => {
+    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+      open: 'default',
+      in_progress: 'secondary',
+      awaiting_reply: 'outline',
+      closed: 'destructive',
+    };
+    const labels: Record<string, string> = {
+      open: language === 'nl' ? 'Open' : 'Open',
+      in_progress: language === 'nl' ? 'In behandeling' : 'In Progress',
+      awaiting_reply: language === 'nl' ? 'Wacht op reactie' : 'Awaiting Reply',
+      closed: language === 'nl' ? 'Gesloten' : 'Closed',
+    };
+    return <Badge variant={variants[status] || 'outline'}>{labels[status] || status}</Badge>;
+  };
+
+  const getTicketPriorityBadge = (priority: string) => {
+    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+      low: 'outline',
+      medium: 'secondary',
+      high: 'default',
+      urgent: 'destructive',
+    };
+    const labels: Record<string, string> = {
+      low: language === 'nl' ? 'Laag' : 'Low',
+      medium: language === 'nl' ? 'Normaal' : 'Medium',
+      high: language === 'nl' ? 'Hoog' : 'High',
+      urgent: language === 'nl' ? 'Urgent' : 'Urgent',
+    };
+    return <Badge variant={variants[priority] || 'outline'}>{labels[priority] || priority}</Badge>;
   };
 
   const getUserRole = (userId: string) => {
@@ -626,7 +777,7 @@ const Admin = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">{t('admin.totalUsers')}</CardTitle>
@@ -663,6 +814,15 @@ const Admin = () => {
               <div className="text-2xl font-bold">{products.length}</div>
             </CardContent>
           </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">{language === 'nl' ? 'Open Tickets' : 'Open Tickets'}</CardTitle>
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{tickets.filter(t => t.status === 'open' || t.status === 'awaiting_reply').length}</div>
+            </CardContent>
+          </Card>
         </div>
 
         <Tabs defaultValue="users" className="space-y-6">
@@ -682,6 +842,15 @@ const Admin = () => {
             <TabsTrigger value="archive" className="flex items-center gap-2">
               <Archive className="h-4 w-4" />
               {t('admin.archive')}
+            </TabsTrigger>
+            <TabsTrigger value="tickets" className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              {language === 'nl' ? 'Tickets' : 'Tickets'}
+              {tickets.filter(t => t.status === 'open' || t.status === 'awaiting_reply').length > 0 && (
+                <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  {tickets.filter(t => t.status === 'open' || t.status === 'awaiting_reply').length}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -1070,6 +1239,165 @@ const Admin = () => {
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="tickets">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Ticket List */}
+              <div className="lg:col-span-1">
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-lg flex items-center justify-between">
+                      <span>{language === 'nl' ? 'Alle Tickets' : 'All Tickets'}</span>
+                      <Badge variant="outline">{tickets.length}</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0 max-h-[600px] overflow-y-auto">
+                    {tickets.length === 0 ? (
+                      <div className="p-6 text-center text-muted-foreground">
+                        <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>{language === 'nl' ? 'Geen tickets' : 'No tickets'}</p>
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-border">
+                        {tickets.map((ticket) => (
+                          <button
+                            key={ticket.id}
+                            onClick={() => handleSelectTicket(ticket)}
+                            className={`w-full text-left p-4 hover:bg-muted/50 transition-colors ${
+                              selectedTicket?.id === ticket.id ? 'bg-muted' : ''
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-foreground truncate">{ticket.subject}</p>
+                                <p className="text-xs text-muted-foreground mt-1 truncate">
+                                  {getUserName(ticket.user_id)}
+                                </p>
+                                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                  {getTicketStatusBadge(ticket.status)}
+                                  {getTicketPriorityBadge(ticket.priority)}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  {new Date(ticket.updated_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Ticket Detail / Chat */}
+              <div className="lg:col-span-2">
+                {selectedTicket ? (
+                  <Card className="h-[600px] flex flex-col">
+                    <CardHeader className="border-b">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg">{selectedTicket.subject}</CardTitle>
+                          <CardDescription className="mt-2">
+                            <span className="font-medium">{getUserName(selectedTicket.user_id)}</span>
+                            <span className="mx-2">•</span>
+                            <span>{selectedTicket.category}</span>
+                          </CardDescription>
+                          <p className="text-sm text-muted-foreground mt-2 bg-muted/50 p-3 rounded-lg">
+                            {selectedTicket.description}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          {getTicketPriorityBadge(selectedTicket.priority)}
+                          <Select
+                            value={selectedTicket.status}
+                            onValueChange={(value: Ticket['status']) => handleUpdateTicketStatus(selectedTicket.id, value)}
+                          >
+                            <SelectTrigger className="w-40">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="open">{language === 'nl' ? 'Open' : 'Open'}</SelectItem>
+                              <SelectItem value="in_progress">{language === 'nl' ? 'In behandeling' : 'In Progress'}</SelectItem>
+                              <SelectItem value="awaiting_reply">{language === 'nl' ? 'Wacht op reactie' : 'Awaiting Reply'}</SelectItem>
+                              <SelectItem value="closed">{language === 'nl' ? 'Gesloten' : 'Closed'}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+                      {ticketReplies.length === 0 ? (
+                        <div className="text-center text-muted-foreground py-8">
+                          <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p>{language === 'nl' ? 'Nog geen reacties' : 'No replies yet'}</p>
+                        </div>
+                      ) : (
+                        ticketReplies.map((reply) => (
+                          <div
+                            key={reply.id}
+                            className={`flex ${reply.is_staff ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div
+                              className={`max-w-[80%] rounded-lg p-3 ${
+                                reply.is_staff
+                                  ? 'bg-primary text-primary-foreground'
+                                  : 'bg-muted text-muted-foreground'
+                              }`}
+                            >
+                              <p className="text-sm">{reply.message}</p>
+                              <p className={`text-xs mt-1 ${reply.is_staff ? 'text-primary-foreground/70' : 'text-muted-foreground/70'}`}>
+                                {reply.is_staff ? '👨‍💻 Staff' : getUserName(reply.user_id)} • {new Date(reply.created_at).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </CardContent>
+                    {selectedTicket.status !== 'closed' && (
+                      <div className="p-4 border-t">
+                        <div className="flex gap-2">
+                          <Textarea
+                            placeholder={language === 'nl' ? 'Typ je antwoord...' : 'Type your reply...'}
+                            value={newTicketReply}
+                            onChange={(e) => setNewTicketReply(e.target.value)}
+                            className="min-h-[60px]"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendTicketReply();
+                              }
+                            }}
+                          />
+                          <Button onClick={handleSendTicketReply} disabled={sendingReply || !newTicketReply.trim()}>
+                            {sendingReply ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Send className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </Card>
+                ) : (
+                  <Card className="h-[600px] flex items-center justify-center">
+                    <div className="text-center text-muted-foreground">
+                      <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-30" />
+                      <p className="text-lg font-medium">
+                        {language === 'nl' ? 'Selecteer een ticket' : 'Select a ticket'}
+                      </p>
+                      <p className="text-sm mt-1">
+                        {language === 'nl' 
+                          ? 'Klik op een ticket om de details te bekijken'
+                          : 'Click on a ticket to view its details'}
+                      </p>
+                    </div>
+                  </Card>
+                )}
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
 

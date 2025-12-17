@@ -73,11 +73,15 @@ const Navbar = () => {
   }, []);
 
   const checkAdminStatus = async (userId: string) => {
-    const { data } = await supabase.rpc('has_role', {
+    const { data: isAdmin } = await supabase.rpc('has_role', {
       _user_id: userId,
       _role: 'admin'
     });
-    setIsAdmin(!!data);
+    const { data: isModerator } = await supabase.rpc('has_role', {
+      _user_id: userId,
+      _role: 'moderator'
+    });
+    setIsAdmin(!!isAdmin || !!isModerator);
   };
 
   useEffect(() => {
