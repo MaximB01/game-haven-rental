@@ -295,6 +295,12 @@ const translations: Translations = {
   'admin.city': { nl: 'Stad', en: 'City' },
   'admin.postalCode': { nl: 'Postcode', en: 'Postal Code' },
   'admin.country': { nl: 'Land', en: 'Country' },
+  
+  // Admin - Order Details
+  'admin.customer': { nl: 'Klant', en: 'Customer' },
+  'admin.orderDetails': { nl: 'Bestelling Details', en: 'Order Details' },
+  'admin.orderId': { nl: 'Bestelling ID', en: 'Order ID' },
+  'admin.updatedAt': { nl: 'Bijgewerkt', en: 'Updated' },
 };
 
 interface LanguageContextType {
