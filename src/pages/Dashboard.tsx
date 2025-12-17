@@ -10,6 +10,7 @@ import Layout from '@/components/layout/Layout';
 import ServerDetailModal from '@/components/dashboard/ServerDetailModal';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
+// User-facing order data (without internal infrastructure IDs)
 interface Order {
   id: string;
   product_type: string;
@@ -18,6 +19,10 @@ interface Order {
   price: number;
   status: string;
   created_at: string;
+}
+
+// Full order data for server management (only fetched when needed)
+interface OrderWithServerDetails extends Order {
   pterodactyl_server_id?: number;
   pterodactyl_identifier?: string;
 }
@@ -26,8 +31,9 @@ const Dashboard = () => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<OrderWithServerDetails | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const { t } = useLanguage();
   const navigate = useNavigate();
 
@@ -54,8 +60,9 @@ const Dashboard = () => {
 
   const fetchOrders = async (userId: string) => {
     try {
+      // Use user_orders view to exclude internal infrastructure IDs from listing
       const { data, error } = await supabase
-        .from('orders')
+        .from('user_orders')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
@@ -66,6 +73,27 @@ const Dashboard = () => {
       console.error('Error fetching orders:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch full order details including server identifiers when user opens details modal
+  const fetchOrderDetails = async (orderId: string) => {
+    setLoadingDetails(true);
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
+
+      if (error) throw error;
+      setSelectedOrder(data);
+      setModalOpen(true);
+    } catch (error: any) {
+      console.error('Error fetching order details:', error);
+      toast.error('Failed to load order details');
+    } finally {
+      setLoadingDetails(false);
     }
   };
 
@@ -129,8 +157,7 @@ const Dashboard = () => {
                 key={order.id} 
                 className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors"
                 onClick={() => {
-                  setSelectedOrder(order);
-                  setModalOpen(true);
+                  fetchOrderDetails(order.id);
                 }}
               >
                 <td className="py-3 px-4">
@@ -151,10 +178,10 @@ const Dashboard = () => {
                   <Button
                     variant="outline"
                     size="sm"
+                    disabled={loadingDetails}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSelectedOrder(order);
-                      setModalOpen(true);
+                      fetchOrderDetails(order.id);
                     }}
                   >
                     {t('dashboard.viewDetails')}
