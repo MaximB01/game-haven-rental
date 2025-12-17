@@ -14,8 +14,10 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, MessageSquare, Send } from 'lucide-react';
+import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, MessageSquare, Send, HelpCircle, BookOpen } from 'lucide-react';
 import ProductImageUpload from '@/components/admin/ProductImageUpload';
+import FAQManagement from '@/components/admin/FAQManagement';
+import KnowledgeBaseManagement from '@/components/admin/KnowledgeBaseManagement';
 import {
   Dialog,
   DialogContent,
@@ -852,6 +854,14 @@ const Admin = () => {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="faq" className="flex items-center gap-2">
+              <HelpCircle className="h-4 w-4" />
+              FAQ
+            </TabsTrigger>
+            <TabsTrigger value="knowledge-base" className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              {language === 'nl' ? 'Kennisbank' : 'Knowledge Base'}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
@@ -1398,6 +1408,40 @@ const Admin = () => {
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          {/* FAQ Management Tab */}
+          <TabsContent value="faq">
+            <Card>
+              <CardHeader>
+                <CardTitle>{language === 'nl' ? 'FAQ Beheer' : 'FAQ Management'}</CardTitle>
+                <CardDescription>
+                  {language === 'nl' 
+                    ? 'Beheer veelgestelde vragen en antwoorden'
+                    : 'Manage frequently asked questions and answers'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FAQManagement />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Knowledge Base Management Tab */}
+          <TabsContent value="knowledge-base">
+            <Card>
+              <CardHeader>
+                <CardTitle>{language === 'nl' ? 'Kennisbank Beheer' : 'Knowledge Base Management'}</CardTitle>
+                <CardDescription>
+                  {language === 'nl' 
+                    ? 'Beheer handleidingen, tutorials en documentatie'
+                    : 'Manage guides, tutorials and documentation'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <KnowledgeBaseManagement />
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 

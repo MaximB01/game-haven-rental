@@ -117,6 +117,8 @@ const Navbar = () => {
       href: getProductPath(product),
       label: product.name
     })),
+    { href: '/faq', label: 'FAQ' },
+    { href: '/knowledge-base', label: language === 'nl' ? 'Kennisbank' : 'Knowledge Base' },
     { href: '/about', label: t('nav.about') },
     { href: '/contact', label: t('nav.contact') },
   ];
