@@ -301,6 +301,16 @@ const translations: Translations = {
   'admin.orderDetails': { nl: 'Bestelling Details', en: 'Order Details' },
   'admin.orderId': { nl: 'Bestelling ID', en: 'Order ID' },
   'admin.updatedAt': { nl: 'Bijgewerkt', en: 'Updated' },
+  
+  // Server Status
+  'serverStatus.info': { nl: 'Info', en: 'Info' },
+  'serverStatus.status': { nl: 'Status', en: 'Status' },
+  'serverStatus.noServer': { nl: 'Geen server gekoppeld', en: 'No server linked' },
+  'serverStatus.retry': { nl: 'Opnieuw proberen', en: 'Retry' },
+  'serverStatus.memory': { nl: 'Geheugen', en: 'Memory' },
+  'serverStatus.disk': { nl: 'Schijf', en: 'Disk' },
+  'serverStatus.uptime': { nl: 'Uptime', en: 'Uptime' },
+  'serverStatus.network': { nl: 'Netwerk', en: 'Network' },
 };
 
 interface LanguageContextType {
