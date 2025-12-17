@@ -56,28 +56,159 @@ export type Database = {
         }
         Relationships: []
       }
+      product_plans: {
+        Row: {
+          backups: number
+          cpu: number
+          created_at: string
+          databases: number
+          disk: number
+          id: string
+          is_active: boolean
+          name: string
+          price: number
+          product_id: string
+          ram: number
+          updated_at: string
+        }
+        Insert: {
+          backups?: number
+          cpu: number
+          created_at?: string
+          databases?: number
+          disk: number
+          id?: string
+          is_active?: boolean
+          name: string
+          price: number
+          product_id: string
+          ram: number
+          updated_at?: string
+        }
+        Update: {
+          backups?: number
+          cpu?: number
+          created_at?: string
+          databases?: number
+          disk?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          price?: number
+          product_id?: string
+          ram?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_plans_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          category: string
+          created_at: string
+          default_port: number | null
+          description: string | null
+          docker_image: string | null
+          egg_id: number | null
+          id: string
+          image_url: string | null
+          is_active: boolean
+          min_cpu: number
+          min_disk: number
+          min_ram: number
+          name: string
+          nest_id: number | null
+          slug: string
+          startup_command: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          default_port?: number | null
+          description?: string | null
+          docker_image?: string | null
+          egg_id?: number | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          min_cpu?: number
+          min_disk?: number
+          min_ram?: number
+          name: string
+          nest_id?: number | null
+          slug: string
+          startup_command?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          default_port?: number | null
+          description?: string | null
+          docker_image?: string | null
+          egg_id?: number | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          min_cpu?: number
+          min_disk?: number
+          min_ram?: number
+          name?: string
+          nest_id?: number | null
+          slug?: string
+          startup_command?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          address: string | null
           avatar_url: string | null
+          city: string | null
+          country: string | null
           created_at: string
+          email: string | null
           full_name: string | null
           id: string
+          phone: string | null
+          postal_code: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          address?: string | null
           avatar_url?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id?: string
+          phone?: string | null
+          postal_code?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          address?: string | null
           avatar_url?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id?: string
+          phone?: string | null
+          postal_code?: string | null
           updated_at?: string
           user_id?: string
         }
