@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp } from 'lucide-react';
+import ProductImageUpload from '@/components/admin/ProductImageUpload';
 import {
   Dialog,
   DialogContent,
@@ -1055,11 +1056,10 @@ const Admin = () => {
                   onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Image URL</Label>
-                <Input
+              <div className="col-span-2">
+                <ProductImageUpload
                   value={productForm.image_url}
-                  onChange={(e) => setProductForm({ ...productForm, image_url: e.target.value })}
+                  onChange={(url) => setProductForm({ ...productForm, image_url: url })}
                 />
               </div>
               <div className="space-y-2">
