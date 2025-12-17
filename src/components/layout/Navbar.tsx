@@ -313,7 +313,50 @@ const Navbar = () => {
                         {getUserDisplayName()}
                       </Button>
                     </Link>
-                    <Button variant="ghost" size="sm" onClick={handleLogout} className="justify-start w-full">
+
+                    <Link to="/settings" onClick={() => setIsOpen(false)}>
+                      <Button variant="ghost" size="sm" className="justify-start w-full">
+                        <Settings className="h-4 w-4 mr-2" />
+                        {t('dashboard.settings')}
+                      </Button>
+                    </Link>
+
+                    <Link to="/tickets" onClick={() => setIsOpen(false)}>
+                      <Button variant="ghost" size="sm" className="justify-start w-full">
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        {language === 'nl' ? 'Support Tickets' : 'Support Tickets'}
+                      </Button>
+                    </Link>
+
+                    <Link to="/faq" onClick={() => setIsOpen(false)}>
+                      <Button variant="ghost" size="sm" className="justify-start w-full">
+                        <HelpCircle className="h-4 w-4 mr-2" />
+                        FAQ
+                      </Button>
+                    </Link>
+
+                    <Link to="/knowledge-base" onClick={() => setIsOpen(false)}>
+                      <Button variant="ghost" size="sm" className="justify-start w-full">
+                        <BookOpen className="h-4 w-4 mr-2" />
+                        {language === 'nl' ? 'Kennisbank' : 'Knowledge Base'}
+                      </Button>
+                    </Link>
+
+                    {isAdmin && (
+                      <Link to="/admin" onClick={() => setIsOpen(false)}>
+                        <Button variant="ghost" size="sm" className="justify-start w-full">
+                          <Shield className="h-4 w-4 mr-2" />
+                          {t('admin.title')}
+                        </Button>
+                      </Link>
+                    )}
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleLogout}
+                      className="justify-start w-full"
+                    >
                       <LogOut className="h-4 w-4 mr-2" />
                       {t('auth.logout')}
                     </Button>
