@@ -387,7 +387,56 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      user_orders: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          plan_name: string | null
+          price: number | null
+          product_name: string | null
+          product_type: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+          variant_id: string | null
+          variant_name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          plan_name?: string | null
+          price?: number | null
+          product_name?: string | null
+          product_type?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          variant_id?: string | null
+          variant_name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          plan_name?: string | null
+          price?: number | null
+          product_name?: string | null
+          product_type?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          variant_id?: string | null
+          variant_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       has_role: {
