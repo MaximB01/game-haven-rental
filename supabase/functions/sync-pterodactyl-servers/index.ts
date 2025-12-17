@@ -155,14 +155,24 @@ serve(async (req) => {
       .select('id, name, category, egg_id, nest_id')
       .eq('is_active', true);
 
-    // Create lookup map: egg_id -> product
+    // Create lookup maps for matching
+    // Priority 1: exact egg_id match
     const eggToProduct = new Map<number, Product>();
+    // Priority 2: nest_id match (more reliable for variants)
+    const nestToProduct = new Map<number, Product>();
+    
     for (const p of products || []) {
       if (p.egg_id !== null) {
         eggToProduct.set(p.egg_id, p as Product);
       }
+      if (p.nest_id !== null) {
+        // Only set if not already set (first product per nest wins)
+        if (!nestToProduct.has(p.nest_id)) {
+          nestToProduct.set(p.nest_id, p as Product);
+        }
+      }
     }
-    console.log(`Loaded ${eggToProduct.size} products with egg_id mapping`);
+    console.log(`Loaded ${eggToProduct.size} products with egg_id, ${nestToProduct.size} with nest_id`);
 
     // Step 4: Fetch product plans
     const { data: plans } = await supabase
@@ -283,21 +293,29 @@ serve(async (req) => {
         continue;
       }
 
-      // Try to match product by egg_id
+      // Try to match product: 1) egg_id, 2) nest_id, 3) RAM fallback
+      const serverNestId = server.attributes.nest;
       let product = eggToProduct.get(serverEggId);
       let matchingPlan: ProductPlan | null = null;
 
       if (product) {
-        // Found product by egg_id, now find plan by RAM
+        // Found product by exact egg_id
         matchingPlan = findPlanForProduct(product.id, ram);
         console.log(`Server ${serverId} (${serverName}): Matched to ${product.name} by egg_id ${serverEggId}`);
       } else {
-        // No egg_id match - fallback to RAM-based matching
-        console.log(`Server ${serverId} (${serverName}): No product with egg_id ${serverEggId}, using RAM fallback`);
-        const fallback = findAnyPlanByRam(ram);
-        if (fallback) {
-          product = fallback.product;
-          matchingPlan = fallback.plan;
+        // Try nest_id match
+        product = nestToProduct.get(serverNestId);
+        if (product) {
+          matchingPlan = findPlanForProduct(product.id, ram);
+          console.log(`Server ${serverId} (${serverName}): Matched to ${product.name} by nest_id ${serverNestId}`);
+        } else {
+          // Final fallback: RAM-based matching
+          console.log(`Server ${serverId} (${serverName}): No product with egg_id ${serverEggId} or nest_id ${serverNestId}, using RAM fallback`);
+          const fallback = findAnyPlanByRam(ram);
+          if (fallback) {
+            product = fallback.product;
+            matchingPlan = fallback.plan;
+          }
         }
       }
 
