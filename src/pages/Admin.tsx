@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, MessageSquare, Send, HelpCircle, BookOpen } from 'lucide-react';
+import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, ArchiveRestore, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, MessageSquare, Send, HelpCircle, BookOpen, UserCircle } from 'lucide-react';
 import ProductImageUpload from '@/components/admin/ProductImageUpload';
 import FAQManagement from '@/components/admin/FAQManagement';
 import KnowledgeBaseManagement from '@/components/admin/KnowledgeBaseManagement';
@@ -92,6 +92,8 @@ interface Ticket {
   category: string;
   created_at: string;
   updated_at: string;
+  assigned_to: string | null;
+  is_archived: boolean;
 }
 
 interface TicketReply {
@@ -101,6 +103,12 @@ interface TicketReply {
   message: string;
   is_staff: boolean;
   created_at: string;
+}
+
+interface StaffMember {
+  user_id: string;
+  full_name: string | null;
+  email: string | null;
 }
 
 const Admin = () => {
@@ -137,6 +145,8 @@ const Admin = () => {
   const [newTicketReply, setNewTicketReply] = useState('');
   const [sendingReply, setSendingReply] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [ticketTab, setTicketTab] = useState<'active' | 'archived'>('active');
 
   // Product form state
   const [productForm, setProductForm] = useState({
@@ -222,7 +232,7 @@ const Admin = () => {
     }
 
     setIsAdmin(true);
-    await Promise.all([fetchUsers(), fetchOrders(), fetchUserRoles(), fetchProducts(), fetchProductPlans(), fetchProductVariants(), fetchTickets()]);
+    await Promise.all([fetchUsers(), fetchOrders(), fetchUserRoles(), fetchProducts(), fetchProductPlans(), fetchProductVariants(), fetchTickets(), fetchStaffMembers()]);
     setLoading(false);
   };
 
@@ -286,6 +296,23 @@ const Admin = () => {
       .order('updated_at', { ascending: false });
     
     if (data) setTickets(data as Ticket[]);
+  };
+
+  const fetchStaffMembers = async () => {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .in('role', ['admin', 'moderator']);
+    
+    if (error || !data) return;
+    
+    const userIds = data.map(r => r.user_id);
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, full_name, email')
+      .in('user_id', userIds);
+    
+    setStaffMembers(profiles || []);
   };
 
   const fetchTicketReplies = async (ticketId: string) => {
@@ -360,6 +387,92 @@ const Admin = () => {
       }
     }
   };
+
+  const handleUpdateTicketPriority = async (ticketId: string, priority: Ticket['priority']) => {
+    const { error } = await supabase
+      .from('tickets')
+      .update({ priority: priority as any })
+      .eq('id', ticketId);
+
+    if (error) {
+      toast({
+        title: language === 'nl' ? 'Fout' : 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: language === 'nl' ? 'Prioriteit bijgewerkt' : 'Priority updated',
+      });
+      await fetchTickets();
+      if (selectedTicket?.id === ticketId) {
+        setSelectedTicket({ ...selectedTicket, priority: priority as Ticket['priority'] });
+      }
+    }
+  };
+
+  const handleAssignTicket = async (ticketId: string, assignedTo: string | null) => {
+    const { error } = await supabase
+      .from('tickets')
+      .update({ assigned_to: assignedTo })
+      .eq('id', ticketId);
+
+    if (error) {
+      toast({
+        title: language === 'nl' ? 'Fout' : 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: language === 'nl' ? 'Ticket toegewezen' : 'Ticket assigned',
+      });
+      await fetchTickets();
+      if (selectedTicket?.id === ticketId) {
+        setSelectedTicket({ ...selectedTicket, assigned_to: assignedTo });
+      }
+    }
+  };
+
+  const handleArchiveTicket = async (ticketId: string, archive: boolean) => {
+    const updateData: { is_archived: boolean; status?: 'closed' } = { is_archived: archive };
+    if (archive) {
+      updateData.status = 'closed';
+    }
+    
+    const { error } = await supabase
+      .from('tickets')
+      .update(updateData as any)
+      .eq('id', ticketId);
+
+    if (error) {
+      toast({
+        title: language === 'nl' ? 'Fout' : 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: archive 
+          ? (language === 'nl' ? 'Ticket gearchiveerd' : 'Ticket archived')
+          : (language === 'nl' ? 'Ticket hersteld' : 'Ticket restored'),
+      });
+      await fetchTickets();
+      if (selectedTicket?.id === ticketId) {
+        setSelectedTicket(null);
+      }
+    }
+  };
+
+  const getStaffName = (userId: string | null) => {
+    if (!userId) return null;
+    const staff = staffMembers.find(s => s.user_id === userId);
+    return staff?.full_name || staff?.email || userId;
+  };
+
+  const filteredTickets = tickets.filter(t => 
+    ticketTab === 'archived' ? t.is_archived : !t.is_archived
+  );
 
   const getTicketStatusBadge = (status: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -1261,20 +1374,31 @@ const Admin = () => {
               <div className="lg:col-span-1">
                 <Card>
                   <CardHeader className="py-3">
-                    <CardTitle className="text-lg flex items-center justify-between">
-                      <span>{language === 'nl' ? 'Alle Tickets' : 'All Tickets'}</span>
-                      <Badge variant="outline">{tickets.length}</Badge>
-                    </CardTitle>
+                    <Tabs value={ticketTab} onValueChange={(v) => setTicketTab(v as 'active' | 'archived')}>
+                      <TabsList className="w-full">
+                        <TabsTrigger value="active" className="flex-1">
+                          {language === 'nl' ? 'Actief' : 'Active'}
+                          <Badge variant="outline" className="ml-2">{tickets.filter(t => !t.is_archived).length}</Badge>
+                        </TabsTrigger>
+                        <TabsTrigger value="archived" className="flex-1">
+                          <Archive className="h-4 w-4 mr-1" />
+                          {language === 'nl' ? 'Archief' : 'Archived'}
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
                   </CardHeader>
                   <CardContent className="p-0 max-h-[600px] overflow-y-auto">
-                    {tickets.length === 0 ? (
+                    {filteredTickets.length === 0 ? (
                       <div className="p-6 text-center text-muted-foreground">
                         <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>{language === 'nl' ? 'Geen tickets' : 'No tickets'}</p>
+                        <p>{ticketTab === 'archived' 
+                          ? (language === 'nl' ? 'Geen gearchiveerde tickets' : 'No archived tickets')
+                          : (language === 'nl' ? 'Geen tickets' : 'No tickets')
+                        }</p>
                       </div>
                     ) : (
                       <div className="divide-y divide-border">
-                        {tickets.map((ticket) => (
+                        {filteredTickets.map((ticket) => (
                           <button
                             key={ticket.id}
                             onClick={() => handleSelectTicket(ticket)}
@@ -1292,7 +1416,13 @@ const Admin = () => {
                                   {getTicketStatusBadge(ticket.status)}
                                   {getTicketPriorityBadge(ticket.priority)}
                                 </div>
-                                <p className="text-xs text-muted-foreground mt-2">
+                                {ticket.assigned_to && (
+                                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                    <UserCircle className="h-3 w-3" />
+                                    {getStaffName(ticket.assigned_to)}
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-1">
                                   {new Date(ticket.updated_at).toLocaleDateString()}
                                 </p>
                               </div>
@@ -1310,7 +1440,7 @@ const Admin = () => {
                 {selectedTicket ? (
                   <Card className="h-[600px] flex flex-col">
                     <CardHeader className="border-b">
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
                           <CardTitle className="text-lg">{selectedTicket.subject}</CardTitle>
                           <CardDescription className="mt-2">
@@ -1321,9 +1451,15 @@ const Admin = () => {
                           <p className="text-sm text-muted-foreground mt-2 bg-muted/50 p-3 rounded-lg">
                             {selectedTicket.description}
                           </p>
+                          {selectedTicket.assigned_to && (
+                            <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1">
+                              <UserCircle className="h-4 w-4" />
+                              {language === 'nl' ? 'Toegewezen aan:' : 'Assigned to:'} {getStaffName(selectedTicket.assigned_to)}
+                            </p>
+                          )}
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                          {getTicketPriorityBadge(selectedTicket.priority)}
+                          {/* Status */}
                           <Select
                             value={selectedTicket.status}
                             onValueChange={(value: Ticket['status']) => handleUpdateTicketStatus(selectedTicket.id, value)}
@@ -1338,6 +1474,61 @@ const Admin = () => {
                               <SelectItem value="closed">{language === 'nl' ? 'Gesloten' : 'Closed'}</SelectItem>
                             </SelectContent>
                           </Select>
+                          
+                          {/* Priority */}
+                          <Select
+                            value={selectedTicket.priority}
+                            onValueChange={(value: Ticket['priority']) => handleUpdateTicketPriority(selectedTicket.id, value)}
+                          >
+                            <SelectTrigger className="w-40">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="low">{language === 'nl' ? 'Laag' : 'Low'}</SelectItem>
+                              <SelectItem value="medium">{language === 'nl' ? 'Normaal' : 'Medium'}</SelectItem>
+                              <SelectItem value="high">{language === 'nl' ? 'Hoog' : 'High'}</SelectItem>
+                              <SelectItem value="urgent">{language === 'nl' ? 'Urgent' : 'Urgent'}</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          
+                          {/* Assign */}
+                          <Select
+                            value={selectedTicket.assigned_to || 'unassigned'}
+                            onValueChange={(value) => handleAssignTicket(selectedTicket.id, value === 'unassigned' ? null : value)}
+                          >
+                            <SelectTrigger className="w-40">
+                              <SelectValue placeholder={language === 'nl' ? 'Toewijzen' : 'Assign'} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unassigned">{language === 'nl' ? 'Niemand' : 'Unassigned'}</SelectItem>
+                              {staffMembers.map(staff => (
+                                <SelectItem key={staff.user_id} value={staff.user_id}>
+                                  {staff.full_name || staff.email || staff.user_id}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          
+                          {/* Archive/Restore */}
+                          {selectedTicket.is_archived ? (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleArchiveTicket(selectedTicket.id, false)}
+                            >
+                              <ArchiveRestore className="h-4 w-4 mr-2" />
+                              {language === 'nl' ? 'Herstellen' : 'Restore'}
+                            </Button>
+                          ) : (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleArchiveTicket(selectedTicket.id, true)}
+                            >
+                              <Archive className="h-4 w-4 mr-2" />
+                              {language === 'nl' ? 'Archiveren' : 'Archive'}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </CardHeader>
@@ -1369,7 +1560,7 @@ const Admin = () => {
                         ))
                       )}
                     </CardContent>
-                    {selectedTicket.status !== 'closed' && (
+                    {selectedTicket.status !== 'closed' && !selectedTicket.is_archived && (
                       <div className="p-4 border-t">
                         <div className="flex gap-2">
                           <Textarea
