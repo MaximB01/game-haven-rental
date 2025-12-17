@@ -311,6 +311,16 @@ const translations: Translations = {
   'serverStatus.disk': { nl: 'Schijf', en: 'Disk' },
   'serverStatus.uptime': { nl: 'Uptime', en: 'Uptime' },
   'serverStatus.network': { nl: 'Netwerk', en: 'Network' },
+  'serverStatus.refresh': { nl: 'Vernieuwen', en: 'Refresh' },
+  
+  // Status Page (Public)
+  'statusPage.title': { nl: 'Server Status', en: 'Server Status' },
+  'statusPage.noServer': { nl: 'Geen server opgegeven', en: 'No server specified' },
+  'statusPage.noServerDesc': { nl: 'Voeg een server ID toe aan de URL (?id=identifier)', en: 'Add a server ID to the URL (?id=identifier)' },
+  'statusPage.limit': { nl: 'Limiet', en: 'Limit' },
+  'statusPage.download': { nl: 'Download', en: 'Download' },
+  'statusPage.upload': { nl: 'Upload', en: 'Upload' },
+  'statusPage.autoRefresh': { nl: 'Status wordt elke 30 seconden automatisch ververst', en: 'Status auto-refreshes every 30 seconds' },
 };
 
 interface LanguageContextType {

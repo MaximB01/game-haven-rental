@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, Wifi, WifiOff, Cpu, HardDrive, Clock } from 'lucide-react';
+import { Loader2, RefreshCw, Wifi, WifiOff, Cpu, HardDrive, Clock, MemoryStick } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ServerStatusProps {
@@ -14,11 +14,14 @@ interface ServerStatusProps {
 interface ServerResources {
   current_state: string;
   is_suspended: boolean;
+  server_name?: string;
   resources: {
     memory_bytes: number;
     memory_limit_bytes: number;
     cpu_absolute: number;
+    cpu_limit: number;
     disk_bytes: number;
+    disk_limit_bytes: number;
     network_rx_bytes: number;
     network_tx_bytes: number;
     uptime: number;
@@ -125,6 +128,14 @@ const ServerStatus = ({ identifier }: ServerStatusProps) => {
     ? (status.resources.memory_bytes / status.resources.memory_limit_bytes) * 100 
     : 0;
 
+  const cpuPercent = status.resources.cpu_limit > 0
+    ? (status.resources.cpu_absolute / status.resources.cpu_limit) * 100
+    : status.resources.cpu_absolute;
+
+  const diskPercent = status.resources.disk_limit_bytes > 0
+    ? (status.resources.disk_bytes / status.resources.disk_limit_bytes) * 100
+    : 0;
+
   const getStateColor = (state: string) => {
     switch (state) {
       case 'running':
@@ -170,7 +181,12 @@ const ServerStatus = ({ identifier }: ServerStatusProps) => {
               <span className="text-sm font-medium">CPU</span>
             </div>
             <p className="text-2xl font-bold">{status.resources.cpu_absolute.toFixed(1)}%</p>
-            <Progress value={Math.min(status.resources.cpu_absolute, 100)} className="mt-2" />
+            <Progress value={Math.min(cpuPercent, 100)} className="mt-2" />
+            {status.resources.cpu_limit > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                / {status.resources.cpu_limit}%
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -178,14 +194,16 @@ const ServerStatus = ({ identifier }: ServerStatusProps) => {
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 mb-2">
-              <HardDrive className="h-4 w-4 text-muted-foreground" />
+              <MemoryStick className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">{t('serverStatus.memory')}</span>
             </div>
             <p className="text-2xl font-bold">{formatBytes(status.resources.memory_bytes)}</p>
             <Progress value={memoryPercent} className="mt-2" />
-            <p className="text-xs text-muted-foreground mt-1">
-              / {formatBytes(status.resources.memory_limit_bytes)}
-            </p>
+            {status.resources.memory_limit_bytes > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                / {formatBytes(status.resources.memory_limit_bytes)}
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -197,6 +215,12 @@ const ServerStatus = ({ identifier }: ServerStatusProps) => {
               <span className="text-sm font-medium">{t('serverStatus.disk')}</span>
             </div>
             <p className="text-2xl font-bold">{formatBytes(status.resources.disk_bytes)}</p>
+            <Progress value={diskPercent} className="mt-2" />
+            {status.resources.disk_limit_bytes > 0 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                / {formatBytes(status.resources.disk_limit_bytes)}
+              </p>
+            )}
           </CardContent>
         </Card>
 
