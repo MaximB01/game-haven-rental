@@ -62,10 +62,16 @@ interface OrderRequest {
   gameId: string;
   planName: string;
   ram: number;
-  slots: number;
-  storage: number;
+  cpu: number;
+  disk: number;
   userId: string;
   userEmail: string;
+  // Optional variant fields
+  variantId?: string;
+  eggId?: number;
+  nestId?: number;
+  dockerImage?: string;
+  startupCommand?: string;
 }
 
 serve(async (req) => {
@@ -96,13 +102,14 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
-    const { orderId, gameId, planName, ram, slots, storage, userId, userEmail }: OrderRequest = await req.json();
+    const { orderId, gameId, planName, ram, cpu, disk, userId, userEmail, variantId, eggId, nestId, dockerImage, startupCommand }: OrderRequest = await req.json();
 
     console.log(`Processing order ${orderId} for game ${gameId}, plan ${planName}`);
+    console.log(`Resources - RAM: ${ram}MB, CPU: ${cpu}%, Disk: ${disk}MB`);
 
     const gameEgg = GAME_EGGS[gameId];
-    if (!gameEgg) {
-      throw new Error(`Unsupported game: ${gameId}`);
+    if (!gameEgg && !eggId) {
+      throw new Error(`Unsupported game: ${gameId} and no variant egg provided`);
     }
 
     // Step 1: Create or get Pterodactyl user
@@ -194,22 +201,31 @@ serve(async (req) => {
 
     // Step 3: Create the server
     const serverName = `${gameId}-${planName}-${orderId.slice(0, 8)}`.toLowerCase();
-    const ramInMB = ram * 1024;
-    const storageInMB = storage * 1024;
+    
+    // Use variant settings if provided, otherwise fall back to game egg defaults
+    const finalEggId = eggId || gameEgg?.eggId || 1;
+    const finalDockerImage = dockerImage || gameEgg?.dockerImage || 'ghcr.io/pterodactyl/yolks:java_17';
+    const finalStartup = startupCommand || gameEgg?.startup || 'java -Xms128M -Xmx{{SERVER_MEMORY}}M -jar {{SERVER_JARFILE}}';
+    const finalEnvironment = gameEgg?.environment || {
+      SERVER_JARFILE: 'server.jar',
+      VANILLA_VERSION: 'latest',
+      BUILD_NUMBER: 'latest'
+    };
 
+    // Values from database are already in MB, no conversion needed
     const createServerPayload = {
       name: serverName,
       user: pterodactylUserId,
-      egg: gameEgg.eggId,
-      docker_image: gameEgg.dockerImage,
-      startup: gameEgg.startup,
-      environment: gameEgg.environment,
+      egg: finalEggId,
+      docker_image: finalDockerImage,
+      startup: finalStartup,
+      environment: finalEnvironment,
       limits: {
-        memory: ramInMB,
+        memory: ram,  // Already in MB from database
         swap: 0,
-        disk: storageInMB,
+        disk: disk,   // Already in MB from database
         io: 500,
-        cpu: 0, // Unlimited
+        cpu: cpu,     // CPU percentage
       },
       feature_limits: {
         databases: 1,
