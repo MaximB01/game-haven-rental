@@ -15,6 +15,7 @@ import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import ServerStatusPage from "./pages/ServerStatusPage";
+import Tickets from "./pages/Tickets";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/tickets" element={<Tickets />} />
             <Route path="/status" element={<ServerStatusPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

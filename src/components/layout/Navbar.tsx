@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ChevronDown, Globe, Sun, Moon, User, LogOut, Settings, Shield } from 'lucide-react';
+import { Menu, X, ChevronDown, Globe, Sun, Moon, User, LogOut, Settings, Shield, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -211,6 +211,10 @@ const Navbar = () => {
                   <DropdownMenuItem onClick={() => navigate('/settings')}>
                     <Settings className="h-4 w-4 mr-2" />
                     {t('dashboard.settings')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/tickets')}>
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    {language === 'nl' ? 'Support Tickets' : 'Support Tickets'}
                   </DropdownMenuItem>
                   {isAdmin && (
                     <DropdownMenuItem onClick={() => navigate('/admin')}>
