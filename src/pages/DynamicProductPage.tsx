@@ -16,6 +16,7 @@ interface Product {
   display_type: string;
   page_path: string | null;
   is_active: boolean;
+  temporarily_unavailable: boolean;
 }
 
 interface ProductPlan {
@@ -139,8 +140,15 @@ const DynamicProductPage = () => {
         <div className="absolute inset-0 gaming-gradient-bg opacity-10" />
         <div className="container mx-auto px-4 relative">
           <div className="text-center max-w-3xl mx-auto">
+            {product.temporarily_unavailable && (
+              <div className="mb-6">
+                <span className="px-4 py-2 text-sm font-medium bg-destructive text-destructive-foreground rounded-full">
+                  {language === 'nl' ? 'Tijdelijk niet beschikbaar' : 'Temporarily unavailable'}
+                </span>
+              </div>
+            )}
             {product.image_url && (
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl overflow-hidden mb-6">
+              <div className={`inline-flex items-center justify-center w-20 h-20 rounded-2xl overflow-hidden mb-6 ${product.temporarily_unavailable ? 'grayscale' : ''}`}>
                 <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
               </div>
             )}
@@ -207,11 +215,14 @@ const DynamicProductPage = () => {
                 </ul>
 
                 <Button
-                  className={`w-full ${plan.popular ? 'gaming-gradient-bg hover:opacity-90' : ''}`}
-                  variant={plan.popular ? 'default' : 'outline'}
+                  className={`w-full ${plan.popular && !product.temporarily_unavailable ? 'gaming-gradient-bg hover:opacity-90' : ''}`}
+                  variant={plan.popular && !product.temporarily_unavailable ? 'default' : 'outline'}
                   size="lg"
+                  disabled={product.temporarily_unavailable}
                 >
-                  {t('pricing.orderNow')}
+                  {product.temporarily_unavailable 
+                    ? (language === 'nl' ? 'Niet beschikbaar' : 'Unavailable')
+                    : t('pricing.orderNow')}
                 </Button>
               </div>
             ))}
