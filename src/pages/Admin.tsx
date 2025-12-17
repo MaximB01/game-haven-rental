@@ -46,6 +46,8 @@ interface Product {
   nest_id: number | null;
   docker_image: string | null;
   startup_command: string | null;
+  display_type: 'own_page' | 'grouped';
+  page_path: string | null;
   created_at: string;
 }
 
@@ -102,6 +104,8 @@ const Admin = () => {
     nest_id: 0,
     docker_image: '',
     startup_command: '',
+    display_type: 'grouped' as 'own_page' | 'grouped',
+    page_path: '',
   });
 
   // Plan form state
@@ -354,6 +358,8 @@ const Admin = () => {
       nest_id: 0,
       docker_image: '',
       startup_command: '',
+      display_type: 'grouped',
+      page_path: '',
     });
   };
 
@@ -389,6 +395,8 @@ const Admin = () => {
       nest_id: product.nest_id || 0,
       docker_image: product.docker_image || '',
       startup_command: product.startup_command || '',
+      display_type: product.display_type || 'grouped',
+      page_path: product.page_path || '',
     });
     setProductDialogOpen(true);
   };
@@ -1074,6 +1082,26 @@ const Admin = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label>Weergave Type</Label>
+                <Select value={productForm.display_type} onValueChange={(v: 'own_page' | 'grouped') => setProductForm({ ...productForm, display_type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="grouped">Gegroepeerd (bijv. Game Servers)</SelectItem>
+                    <SelectItem value="own_page">Eigen Pagina</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {productForm.display_type === 'own_page' && (
+                <div className="space-y-2">
+                  <Label>Pagina Pad</Label>
+                  <Input
+                    value={productForm.page_path}
+                    onChange={(e) => setProductForm({ ...productForm, page_path: e.target.value })}
+                    placeholder="/vps, /bot-hosting, etc."
+                  />
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Egg ID (Pterodactyl)</Label>
                 <Input
