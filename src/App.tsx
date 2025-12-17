@@ -16,6 +16,9 @@ import Settings from "./pages/Settings";
 import Admin from "./pages/Admin";
 import ServerStatusPage from "./pages/ServerStatusPage";
 import Tickets from "./pages/Tickets";
+import FAQ from "./pages/FAQ";
+import KnowledgeBase from "./pages/KnowledgeBase";
+import KnowledgeBaseArticle from "./pages/KnowledgeBaseArticle";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +48,9 @@ const App = () => (
             <Route path="/admin" element={<Admin />} />
             <Route path="/tickets" element={<Tickets />} />
             <Route path="/status" element={<ServerStatusPage />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/knowledge-base" element={<KnowledgeBase />} />
+            <Route path="/knowledge-base/:slug" element={<KnowledgeBaseArticle />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
