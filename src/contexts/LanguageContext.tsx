@@ -163,6 +163,17 @@ const translations: Translations = {
   'dashboard.manageServer': { nl: 'Beheer Server', en: 'Manage Server' },
   'dashboard.serverPanel': { nl: 'Server Paneel', en: 'Server Panel' },
   'dashboard.viewDetails': { nl: 'Details', en: 'Details' },
+  'dashboard.openServerPanel': { nl: 'Open Server Paneel', en: 'Open Server Panel' },
+  'dashboard.cancelServer': { nl: 'Server Opzeggen', en: 'Cancel Server' },
+  'dashboard.cancelConfirmTitle': { nl: 'Weet je het zeker?', en: 'Are you sure?' },
+  'dashboard.cancelConfirmDescription': { nl: 'Je staat op het punt om deze server op te zeggen. Deze actie kan niet ongedaan gemaakt worden.', en: 'You are about to cancel this server. This action cannot be undone.' },
+  'dashboard.confirmCancel': { nl: 'Ja, opzeggen', en: 'Yes, cancel' },
+  'dashboard.serverCancelled': { nl: 'Server is opgezegd', en: 'Server has been cancelled' },
+  'dashboard.cancelError': { nl: 'Er ging iets mis bij het opzeggen', en: 'Something went wrong while cancelling' },
+  'dashboard.contactSupport': { nl: 'Neem contact op', en: 'Contact Support' },
+
+  // Common
+  'common.cancel': { nl: 'Annuleren', en: 'Cancel' },
 
   // Order Status
   'order.status.pending': { nl: 'In behandeling', en: 'Pending' },
