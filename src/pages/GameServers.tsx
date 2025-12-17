@@ -29,6 +29,7 @@ interface Product {
   display_type: string;
   is_active: boolean;
   temporarily_unavailable: boolean;
+  created_at: string;
 }
 
 interface ProductPlan {
@@ -89,6 +90,22 @@ const GameServers = () => {
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Filter logic
+    if (filter === 'popular') {
+      // Popular: products with the most plans or highest priced plans (as a proxy for popularity)
+      const productPlans = plans.filter(p => p.product_id === product.id);
+      if (productPlans.length < 2) return false; // Consider products with multiple plans as "popular"
+    }
+    
+    if (filter === 'new') {
+      // New: products created in the last 30 days
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const productDate = new Date(product.created_at);
+      if (productDate < thirtyDaysAgo) return false;
+    }
+    
     return matchesSearch;
   });
 
