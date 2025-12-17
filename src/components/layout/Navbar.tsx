@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X, ChevronDown, Globe, Sun, Moon, User, LogOut, Settings, Shield, MessageSquare } from 'lucide-react';
+import { Menu, X, ChevronDown, Globe, Sun, Moon, User, LogOut, Settings, Shield, MessageSquare, HelpCircle, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -117,8 +117,6 @@ const Navbar = () => {
       href: getProductPath(product),
       label: product.name
     })),
-    { href: '/faq', label: 'FAQ' },
-    { href: '/knowledge-base', label: language === 'nl' ? 'Kennisbank' : 'Knowledge Base' },
     { href: '/about', label: t('nav.about') },
     { href: '/contact', label: t('nav.contact') },
   ];
@@ -222,11 +220,23 @@ const Navbar = () => {
                     <MessageSquare className="h-4 w-4 mr-2" />
                     {language === 'nl' ? 'Support Tickets' : 'Support Tickets'}
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/faq')}>
+                    <HelpCircle className="h-4 w-4 mr-2" />
+                    FAQ
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/knowledge-base')}>
+                    <BookOpen className="h-4 w-4 mr-2" />
+                    {language === 'nl' ? 'Kennisbank' : 'Knowledge Base'}
+                  </DropdownMenuItem>
                   {isAdmin && (
-                    <DropdownMenuItem onClick={() => navigate('/admin')}>
-                      <Shield className="h-4 w-4 mr-2" />
-                      {t('admin.title')}
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => navigate('/admin')}>
+                        <Shield className="h-4 w-4 mr-2" />
+                        {t('admin.title')}
+                      </DropdownMenuItem>
+                    </>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
