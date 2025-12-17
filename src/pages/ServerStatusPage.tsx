@@ -2,52 +2,32 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import Layout from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, CheckCircle, XCircle, AlertCircle, Clock, Server, Activity } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle, XCircle, AlertCircle, Activity, Server, Gamepad2, Globe, Bot, HardDrive } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-interface ServerStatus {
-  order_id: string;
-  product_name: string;
-  plan_name: string;
-  identifier: string;
-  current_state: string;
-  is_suspended: boolean;
-  server_name?: string;
-  uptime?: number;
-  error?: string;
+interface ServiceStatus {
+  name: string;
+  slug: string;
+  category: string;
+  total_servers: number;
+  running: number;
+  offline: number;
+  errors: number;
+  status: 'operational' | 'degraded' | 'partial' | 'down' | 'unknown';
 }
 
 interface StatusData {
-  servers: ServerStatus[];
-  stats: {
-    total: number;
-    running: number;
-    offline: number;
-    starting: number;
-    error: number;
-  };
+  services: ServiceStatus[];
+  overall_status: string;
+  last_updated: string;
 }
-
-const formatUptime = (ms: number): string => {
-  const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-  
-  if (days > 0) return `${days}d ${hours % 24}h`;
-  if (hours > 0) return `${hours}h ${minutes % 60}m`;
-  if (minutes > 0) return `${minutes}m`;
-  return `${seconds}s`;
-};
 
 const ServerStatusPage = () => {
   const { t } = useLanguage();
   const [data, setData] = useState<StatusData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const fetchStatus = async () => {
     setLoading(true);
@@ -65,11 +45,10 @@ const ServerStatusPage = () => {
       }
       
       setData(responseData);
-      setLastUpdated(new Date());
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to fetch status';
       setError(errorMessage);
-      console.error('Error fetching server status:', err);
+      console.error('Error fetching service status:', err);
     } finally {
       setLoading(false);
     }
@@ -82,64 +61,70 @@ const ServerStatusPage = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const getStateIcon = (state: string) => {
-    switch (state) {
-      case 'running':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
-      case 'starting':
-      case 'stopping':
-        return <Clock className="h-5 w-5 text-yellow-500" />;
-      case 'offline':
-      case 'stopped':
-        return <XCircle className="h-5 w-5 text-muted-foreground" />;
-      case 'error':
-        return <AlertCircle className="h-5 w-5 text-destructive" />;
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'operational':
+        return <CheckCircle className="h-6 w-6 text-green-500" />;
+      case 'degraded':
+        return <AlertCircle className="h-6 w-6 text-yellow-500" />;
+      case 'partial':
+        return <AlertCircle className="h-6 w-6 text-yellow-500" />;
+      case 'down':
+        return <XCircle className="h-6 w-6 text-destructive" />;
       default:
-        return <AlertCircle className="h-5 w-5 text-muted-foreground" />;
+        return <AlertCircle className="h-6 w-6 text-muted-foreground" />;
     }
   };
 
-  const getStateBadgeVariant = (state: string): "default" | "secondary" | "destructive" | "outline" => {
-    switch (state) {
-      case 'running':
-        return 'default';
-      case 'starting':
-      case 'stopping':
-        return 'secondary';
-      case 'offline':
-      case 'stopped':
-        return 'outline';
-      case 'error':
-        return 'destructive';
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'operational':
+        return t('statusPage.operational');
+      case 'degraded':
+        return t('statusPage.degraded');
+      case 'partial':
+        return t('statusPage.partial');
+      case 'down':
+        return t('statusPage.down');
       default:
-        return 'outline';
+        return t('statusPage.unknown');
     }
   };
 
-  const getOverallStatus = () => {
-    if (!data) return { status: 'unknown', message: t('statusPage.loading') };
-    
-    const { stats } = data;
-    if (stats.error > 0) {
-      return { status: 'degraded', message: t('statusPage.degraded') };
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'operational':
+        return 'text-green-500';
+      case 'degraded':
+      case 'partial':
+        return 'text-yellow-500';
+      case 'down':
+        return 'text-destructive';
+      default:
+        return 'text-muted-foreground';
     }
-    if (stats.running === stats.total && stats.total > 0) {
-      return { status: 'operational', message: t('statusPage.operational') };
-    }
-    if (stats.running > 0) {
-      return { status: 'partial', message: t('statusPage.partial') };
-    }
-    if (stats.total === 0) {
-      return { status: 'none', message: t('statusPage.noServers') };
-    }
-    return { status: 'down', message: t('statusPage.down') };
   };
 
-  const overall = getOverallStatus();
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'game':
+        return <Gamepad2 className="h-5 w-5" />;
+      case 'vps':
+        return <HardDrive className="h-5 w-5" />;
+      case 'web':
+        return <Globe className="h-5 w-5" />;
+      case 'bot':
+        return <Bot className="h-5 w-5" />;
+      default:
+        return <Server className="h-5 w-5" />;
+    }
+  };
+
+  const overallStatus = data?.overall_status || 'unknown';
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 py-8 max-w-3xl">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
@@ -151,26 +136,20 @@ const ServerStatusPage = () => {
 
         {/* Overall Status Banner */}
         <Card className={`mb-8 ${
-          overall.status === 'operational' ? 'border-green-500/50 bg-green-500/5' :
-          overall.status === 'degraded' ? 'border-yellow-500/50 bg-yellow-500/5' :
-          overall.status === 'partial' ? 'border-yellow-500/50 bg-yellow-500/5' :
-          overall.status === 'down' ? 'border-destructive/50 bg-destructive/5' :
+          overallStatus === 'operational' ? 'border-green-500/50 bg-green-500/5' :
+          overallStatus === 'degraded' || overallStatus === 'partial' ? 'border-yellow-500/50 bg-yellow-500/5' :
+          overallStatus === 'down' ? 'border-destructive/50 bg-destructive/5' :
           ''
         }`}>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                {overall.status === 'operational' && <CheckCircle className="h-8 w-8 text-green-500" />}
-                {overall.status === 'degraded' && <AlertCircle className="h-8 w-8 text-yellow-500" />}
-                {overall.status === 'partial' && <AlertCircle className="h-8 w-8 text-yellow-500" />}
-                {overall.status === 'down' && <XCircle className="h-8 w-8 text-destructive" />}
-                {overall.status === 'none' && <Server className="h-8 w-8 text-muted-foreground" />}
-                {overall.status === 'unknown' && <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />}
+                {getStatusIcon(overallStatus)}
                 <div>
-                  <h2 className="text-xl font-semibold">{overall.message}</h2>
-                  {lastUpdated && (
+                  <h2 className="text-xl font-semibold">{getStatusText(overallStatus)}</h2>
+                  {data?.last_updated && (
                     <p className="text-sm text-muted-foreground">
-                      {t('statusPage.lastUpdated')}: {lastUpdated.toLocaleTimeString()}
+                      {t('statusPage.lastUpdated')}: {new Date(data.last_updated).toLocaleTimeString()}
                     </p>
                   )}
                 </div>
@@ -182,36 +161,6 @@ const ServerStatusPage = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Stats Overview */}
-        {data && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-            <Card>
-              <CardContent className="pt-4 text-center">
-                <p className="text-3xl font-bold text-green-500">{data.stats.running}</p>
-                <p className="text-sm text-muted-foreground">{t('statusPage.online')}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4 text-center">
-                <p className="text-3xl font-bold text-muted-foreground">{data.stats.offline}</p>
-                <p className="text-sm text-muted-foreground">{t('statusPage.offline')}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4 text-center">
-                <p className="text-3xl font-bold text-yellow-500">{data.stats.starting}</p>
-                <p className="text-sm text-muted-foreground">{t('statusPage.starting')}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4 text-center">
-                <p className="text-3xl font-bold text-destructive">{data.stats.error}</p>
-                <p className="text-sm text-muted-foreground">{t('statusPage.errors')}</p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
 
         {/* Error State */}
         {error && (
@@ -234,56 +183,36 @@ const ServerStatusPage = () => {
           </div>
         )}
 
-        {/* Server List */}
-        {data && data.servers.length > 0 && (
+        {/* Services List */}
+        {data && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Server className="h-5 w-5" />
-                {t('statusPage.servers')} ({data.servers.length})
-              </CardTitle>
+              <CardTitle>{t('statusPage.services')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="divide-y">
-                {data.servers.map((server) => (
-                  <div key={server.order_id} className="py-4 flex items-center justify-between">
+                {data.services.map((service) => (
+                  <div key={service.slug} className="py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      {getStateIcon(server.current_state)}
+                      <div className="p-2 rounded-lg bg-muted">
+                        {getCategoryIcon(service.category)}
+                      </div>
                       <div>
-                        <p className="font-medium">
-                          {server.server_name || server.product_name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {server.product_name} • {server.plan_name}
+                        <p className="font-medium">{service.name}</p>
+                        <p className="text-sm text-muted-foreground capitalize">
+                          {service.category === 'game' ? t('statusPage.gameServers') : service.category}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      {server.uptime && server.uptime > 0 && (
-                        <span className="text-sm text-muted-foreground hidden sm:inline">
-                          {t('serverStatus.uptime')}: {formatUptime(server.uptime)}
-                        </span>
-                      )}
-                      <Badge variant={getStateBadgeVariant(server.current_state)}>
-                        {server.current_state.toUpperCase()}
-                      </Badge>
-                      {server.is_suspended && (
-                        <Badge variant="destructive">SUSPENDED</Badge>
-                      )}
+                    <div className="flex items-center gap-3">
+                      {getStatusIcon(service.status)}
+                      <span className={`font-medium ${getStatusColor(service.status)}`}>
+                        {getStatusText(service.status)}
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* No Servers */}
-        {data && data.servers.length === 0 && (
-          <Card>
-            <CardContent className="pt-6 text-center py-12">
-              <Server className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">{t('statusPage.noServers')}</p>
             </CardContent>
           </Card>
         )}
