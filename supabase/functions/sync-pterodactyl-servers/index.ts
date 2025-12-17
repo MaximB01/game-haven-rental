@@ -11,6 +11,8 @@ interface PterodactylServer {
     id: number;
     identifier: string;
     name: string;
+    egg: number;
+    nest: number;
     limits: {
       memory: number;
       cpu: number;
@@ -27,6 +29,22 @@ interface PterodactylUser {
     first_name: string;
     last_name: string;
   };
+}
+
+interface Product {
+  id: string;
+  name: string;
+  category: string;
+  egg_id: number | null;
+  nest_id: number | null;
+}
+
+interface ProductPlan {
+  id: string;
+  name: string;
+  product_id: string;
+  ram: number;
+  price: number;
 }
 
 serve(async (req) => {
@@ -131,22 +149,34 @@ serve(async (req) => {
       pterodactylUserMap.set(u.attributes.id, u.attributes.email.toLowerCase());
     }
 
-    // Step 3: Fetch product plans to match RAM
+    // Step 3: Fetch products with egg_id to match server type
+    const { data: products } = await supabase
+      .from('products')
+      .select('id, name, category, egg_id, nest_id')
+      .eq('is_active', true);
+
+    // Create lookup map: egg_id -> product
+    const eggToProduct = new Map<number, Product>();
+    for (const p of products || []) {
+      if (p.egg_id !== null) {
+        eggToProduct.set(p.egg_id, p as Product);
+      }
+    }
+    console.log(`Loaded ${eggToProduct.size} products with egg_id mapping`);
+
+    // Step 4: Fetch product plans
     const { data: plans } = await supabase
       .from('product_plans')
       .select('id, name, product_id, ram, price')
       .eq('is_active', true)
       .order('ram', { ascending: true });
 
-    // Step 4: Fetch products to get names
-    const { data: products } = await supabase
-      .from('products')
-      .select('id, name, category')
-      .eq('is_active', true);
-
-    const productMap = new Map<string, { name: string; category: string }>();
-    for (const p of products || []) {
-      productMap.set(p.id, { name: p.name, category: p.category });
+    // Group plans by product_id
+    const plansByProduct = new Map<string, ProductPlan[]>();
+    for (const plan of plans || []) {
+      const existing = plansByProduct.get(plan.product_id) || [];
+      existing.push(plan as ProductPlan);
+      plansByProduct.set(plan.product_id, existing);
     }
 
     // Step 5: Fetch existing orders with pterodactyl_server_id
@@ -160,8 +190,7 @@ serve(async (req) => {
         .filter(Boolean)
     );
 
-    // Step 6: Fetch Supabase users by email (using auth.users via service role)
-    // We'll match against profiles which has email
+    // Step 6: Fetch Supabase users by email
     const { data: profiles } = await supabase
       .from('profiles')
       .select('user_id, email');
@@ -173,15 +202,16 @@ serve(async (req) => {
       }
     }
 
-    // Helper function to find best matching plan based on RAM
-    const findPlanByRam = (ramMb: number) => {
-      if (!plans || plans.length === 0) return null;
+    // Helper function to find best matching plan for a product based on RAM
+    const findPlanForProduct = (productId: string, ramMb: number): ProductPlan | null => {
+      const productPlans = plansByProduct.get(productId);
+      if (!productPlans || productPlans.length === 0) return null;
       
-      // Find the plan with exact or closest RAM match
-      let bestPlan = null;
+      // Find the plan with closest RAM match
+      let bestPlan: ProductPlan | null = null;
       let smallestDiff = Infinity;
       
-      for (const plan of plans) {
+      for (const plan of productPlans) {
         const diff = Math.abs(plan.ram - ramMb);
         if (diff < smallestDiff) {
           smallestDiff = diff;
@@ -192,11 +222,33 @@ serve(async (req) => {
       return bestPlan;
     };
 
+    // Fallback: find any plan matching RAM (for unknown products)
+    const findAnyPlanByRam = (ramMb: number): { plan: ProductPlan; product: Product } | null => {
+      let bestMatch: { plan: ProductPlan; product: Product } | null = null;
+      let smallestDiff = Infinity;
+      
+      for (const [productId, productPlans] of plansByProduct) {
+        for (const plan of productPlans) {
+          const diff = Math.abs(plan.ram - ramMb);
+          if (diff < smallestDiff) {
+            smallestDiff = diff;
+            const product = (products || []).find(p => p.id === productId);
+            if (product) {
+              bestMatch = { plan, product: product as Product };
+            }
+          }
+        }
+      }
+      
+      return bestMatch;
+    };
+
     // Step 7: Process servers and create orders
     const results = {
       imported: 0,
       skipped: 0,
       noUser: 0,
+      noProduct: 0,
       noPlan: 0,
       errors: [] as string[],
     };
@@ -205,6 +257,7 @@ serve(async (req) => {
       const serverId = server.attributes.id;
       const serverIdentifier = server.attributes.identifier;
       const serverName = server.attributes.name;
+      const serverEggId = server.attributes.egg;
       const ram = server.attributes.limits.memory;
       const pterodactylUserId = server.attributes.user;
 
@@ -217,7 +270,7 @@ serve(async (req) => {
       // Get Pterodactyl user email
       const userEmail = pterodactylUserMap.get(pterodactylUserId);
       if (!userEmail) {
-        console.log(`Server ${serverId}: No email found for Pterodactyl user ${pterodactylUserId}`);
+        console.log(`Server ${serverId} (${serverName}): No email found for Pterodactyl user ${pterodactylUserId}`);
         results.noUser++;
         continue;
       }
@@ -225,30 +278,48 @@ serve(async (req) => {
       // Find Supabase user by email
       const supabaseUserId = emailToUserId.get(userEmail);
       if (!supabaseUserId) {
-        console.log(`Server ${serverId}: No Supabase user found for email ${userEmail}`);
+        console.log(`Server ${serverId} (${serverName}): No Supabase user found for email ${userEmail}`);
         results.noUser++;
         continue;
       }
 
-      // Find matching plan by RAM
-      const matchingPlan = findPlanByRam(ram);
-      if (!matchingPlan) {
-        console.log(`Server ${serverId}: No matching plan for ${ram}MB RAM`);
-        results.noPlan++;
+      // Try to match product by egg_id
+      let product = eggToProduct.get(serverEggId);
+      let matchingPlan: ProductPlan | null = null;
+
+      if (product) {
+        // Found product by egg_id, now find plan by RAM
+        matchingPlan = findPlanForProduct(product.id, ram);
+        console.log(`Server ${serverId} (${serverName}): Matched to ${product.name} by egg_id ${serverEggId}`);
+      } else {
+        // No egg_id match - fallback to RAM-based matching
+        console.log(`Server ${serverId} (${serverName}): No product with egg_id ${serverEggId}, using RAM fallback`);
+        const fallback = findAnyPlanByRam(ram);
+        if (fallback) {
+          product = fallback.product;
+          matchingPlan = fallback.plan;
+        }
+      }
+
+      if (!product) {
+        console.log(`Server ${serverId} (${serverName}): No matching product found`);
+        results.noProduct++;
         continue;
       }
 
-      const productInfo = productMap.get(matchingPlan.product_id);
-      const productName = productInfo?.name || 'Unknown Product';
-      const productType = productInfo?.category || 'game';
+      if (!matchingPlan) {
+        console.log(`Server ${serverId} (${serverName}): No matching plan for ${ram}MB RAM`);
+        results.noPlan++;
+        continue;
+      }
 
       // Create order
       const { error: insertError } = await supabase
         .from('orders')
         .insert({
           user_id: supabaseUserId,
-          product_name: productName,
-          product_type: productType,
+          product_name: product.name,
+          product_type: product.category,
           plan_name: matchingPlan.name,
           price: matchingPlan.price,
           status: 'active',
@@ -260,7 +331,7 @@ serve(async (req) => {
         console.error(`Failed to create order for server ${serverId}:`, insertError.message);
         results.errors.push(`Server ${serverName}: ${insertError.message}`);
       } else {
-        console.log(`Created order for server ${serverId} (${serverName})`);
+        console.log(`Created order for server ${serverId} (${serverName}) -> ${product.name} / ${matchingPlan.name}`);
         results.imported++;
       }
     }
@@ -271,7 +342,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         results,
-        message: `Imported ${results.imported} servers, skipped ${results.skipped} existing, ${results.noUser} without matching user, ${results.noPlan} without matching plan`,
+        message: `Imported ${results.imported} servers, skipped ${results.skipped} existing, ${results.noUser} without user, ${results.noProduct} without product match, ${results.noPlan} without plan`,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
