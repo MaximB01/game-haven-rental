@@ -1,90 +1,65 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, HardDrive, Users, Cpu, Loader2 } from 'lucide-react';
+import { ArrowLeft, Check, HardDrive, Users, Cpu, Loader2, Server } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 import minecraftImg from '@/assets/games/minecraft.jpg';
 import rustImg from '@/assets/games/rust.jpg';
 import valheimImg from '@/assets/games/valheim.jpg';
 import arkImg from '@/assets/games/ark.jpg';
 
-const gamesData = {
-  minecraft: {
-    name: 'Minecraft',
-    image: minecraftImg,
-    description: {
-      nl: 'Host je eigen Minecraft server en speel samen met vrienden. Wij ondersteunen alle versies en modpacks.',
-      en: 'Host your own Minecraft server and play with friends. We support all versions and modpacks.',
-    },
-    features: {
-      nl: ['Alle versies ondersteund', 'Modpack support', 'Automatische backups', 'Plugin support', 'Onbeperkt slots'],
-      en: ['All versions supported', 'Modpack support', 'Automatic backups', 'Plugin support', 'Unlimited slots'],
-    },
-    plans: [
-      { name: 'Starter', ram: 2, slots: 10, storage: 10, price: 4.99 },
-      { name: 'Basic', ram: 4, slots: 20, storage: 20, price: 7.99, popular: true },
-      { name: 'Pro', ram: 8, slots: 50, storage: 40, price: 14.99 },
-      { name: 'Ultimate', ram: 16, slots: 100, storage: 80, price: 24.99 },
-    ],
-  },
-  rust: {
-    name: 'Rust',
-    image: rustImg,
-    description: {
-      nl: 'De ultieme survival ervaring. Bouw je basis, verzamel resources en overleef tegen andere spelers.',
-      en: 'The ultimate survival experience. Build your base, gather resources and survive against other players.',
-    },
-    features: {
-      nl: ['Oxide plugin support', 'Automatische wipes', 'Custom maps', 'Hoge performance', 'DDoS bescherming'],
-      en: ['Oxide plugin support', 'Automatic wipes', 'Custom maps', 'High performance', 'DDoS protection'],
-    },
-    plans: [
-      { name: 'Starter', ram: 8, slots: 50, storage: 30, price: 9.99 },
-      { name: 'Standard', ram: 12, slots: 100, storage: 50, price: 14.99, popular: true },
-      { name: 'Pro', ram: 16, slots: 200, storage: 80, price: 24.99 },
-      { name: 'Ultimate', ram: 32, slots: 500, storage: 150, price: 44.99 },
-    ],
-  },
-  valheim: {
-    name: 'Valheim',
-    image: valheimImg,
-    description: {
-      nl: 'Verken de Noorse mythologie in deze populaire Viking survival game. Perfect voor co-op met vrienden.',
-      en: 'Explore Norse mythology in this popular Viking survival game. Perfect for co-op with friends.',
-    },
-    features: {
-      nl: ['Mod support', 'Automatische backups', 'Wereldbeheer', 'Cross-platform', 'Lage latency'],
-      en: ['Mod support', 'Automatic backups', 'World management', 'Cross-platform', 'Low latency'],
-    },
-    plans: [
-      { name: 'Duo', ram: 2, slots: 2, storage: 10, price: 4.99 },
-      { name: 'Squad', ram: 4, slots: 5, storage: 20, price: 6.99, popular: true },
-      { name: 'Clan', ram: 6, slots: 10, storage: 30, price: 9.99 },
-      { name: 'Legion', ram: 8, slots: 20, storage: 50, price: 14.99 },
-    ],
-  },
-  ark: {
-    name: 'Ark: Survival Evolved',
-    image: arkImg,
-    description: {
-      nl: 'Waar overleven evolutie wordt — tem kolossale wezens, bouw beschavingen en vecht om je plaats aan de top.',
-      en: 'Where survival becomes evolution — tame colossal creatures, build civilizations, and fight for your place at the top.',
-    },
-    features: {
-      nl: ['Mod support', 'Automatische backups', 'Wereldbeheer', 'Lage latency'],
-      en: ['Mod support', 'Automatic backups', 'World management', 'Low latency'],
-    },
-    plans: [
-      { name: 'Starter', ram: 2, slots: 10, storage: 10, price: 5.99 },
-      { name: 'Standard', ram: 4, slots: 20, storage: 20, price: 6.99 },
-      { name: 'Pro', ram: 6, slots: 50, storage: 30, price: 11.99, popular: true },
-      { name: 'Ultimate', ram: 8, slots: 100, storage: 50, price: 16.99 },
-    ],
-  },
+// Fallback images
+const defaultImages: Record<string, string> = {
+  minecraft: minecraftImg,
+  rust: rustImg,
+  valheim: valheimImg,
+  ark: arkImg,
 };
+
+interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image_url: string | null;
+  category: string;
+  is_active: boolean;
+  temporarily_unavailable: boolean;
+  egg_id: number | null;
+  nest_id: number | null;
+}
+
+interface ProductPlan {
+  id: string;
+  product_id: string;
+  name: string;
+  price: number;
+  ram: number;
+  cpu: number;
+  disk: number;
+  databases: number;
+  backups: number;
+  is_active: boolean;
+}
+
+interface ProductVariant {
+  id: string;
+  product_id: string;
+  name: string;
+  description: string | null;
+  egg_id: number | null;
+  nest_id: number | null;
+  docker_image: string | null;
+  startup_command: string | null;
+  is_default: boolean;
+  is_active: boolean;
+  sort_order: number;
+}
 
 const GameDetail = () => {
   const { gameId } = useParams<{ gameId: string }>();
@@ -92,14 +67,81 @@ const GameDetail = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isOrdering, setIsOrdering] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [plans, setPlans] = useState<ProductPlan[]>([]);
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
 
-  const game = gamesData[gameId as keyof typeof gamesData];
+  useEffect(() => {
+    if (gameId) {
+      fetchProductData(gameId);
+    }
+  }, [gameId]);
 
-  const handleOrder = async (plan: typeof game.plans[0]) => {
+  const fetchProductData = async (slug: string) => {
+    setLoading(true);
+
+    // Fetch product
+    const { data: productData } = await supabase
+      .from('products')
+      .select('*')
+      .eq('slug', slug)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (!productData) {
+      setLoading(false);
+      return;
+    }
+
+    setProduct(productData as Product);
+
+    // Fetch plans and variants in parallel
+    const [plansResult, variantsResult] = await Promise.all([
+      supabase
+        .from('product_plans')
+        .select('*')
+        .eq('product_id', productData.id)
+        .eq('is_active', true)
+        .order('price', { ascending: true }),
+      supabase
+        .from('product_variants')
+        .select('*')
+        .eq('product_id', productData.id)
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+    ]);
+
+    if (plansResult.data) setPlans(plansResult.data as ProductPlan[]);
+    if (variantsResult.data) {
+      const variantsList = variantsResult.data as ProductVariant[];
+      setVariants(variantsList);
+      // Set default variant
+      const defaultVariant = variantsList.find(v => v.is_default) || variantsList[0];
+      if (defaultVariant) setSelectedVariant(defaultVariant.id);
+    }
+
+    setLoading(false);
+  };
+
+  const getProductImage = () => {
+    if (product?.image_url) return product.image_url;
+    return defaultImages[gameId || ''] || minecraftImg;
+  };
+
+  const getFeatures = () => {
+    return language === 'nl'
+      ? ['DDoS bescherming', 'Automatische backups', '99.9% uptime garantie', 'Nederlands datacenter', '24/7 support', 'Eenvoudig beheer']
+      : ['DDoS protection', 'Automatic backups', '99.9% uptime guarantee', 'Dutch datacenter', '24/7 support', 'Easy management'];
+  };
+
+  const handleOrder = async (plan: ProductPlan) => {
+    if (!product) return;
+
     try {
       setIsOrdering(plan.name);
 
-      // Check if user is logged in
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
@@ -114,16 +156,21 @@ const GameDetail = () => {
         return;
       }
 
+      // Get selected variant details
+      const selectedVariantData = variants.find(v => v.id === selectedVariant);
+
       // Create order in database
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
           user_id: user.id,
           product_type: 'game_server',
-          product_name: game.name,
+          product_name: product.name,
           plan_name: plan.name,
           price: plan.price,
           status: 'provisioning',
+          variant_id: selectedVariant,
+          variant_name: selectedVariantData?.name || null,
         })
         .select()
         .single();
@@ -142,17 +189,22 @@ const GameDetail = () => {
             gameId: gameId,
             planName: plan.name,
             ram: plan.ram,
-            slots: plan.slots,
-            storage: plan.storage,
+            cpu: plan.cpu,
+            disk: plan.disk,
             userId: user.id,
             userEmail: user.email,
+            // Pass variant data for egg selection
+            variantId: selectedVariant,
+            eggId: selectedVariantData?.egg_id || product.egg_id,
+            nestId: selectedVariantData?.nest_id || product.nest_id,
+            dockerImage: selectedVariantData?.docker_image,
+            startupCommand: selectedVariantData?.startup_command,
           },
         }
       );
 
       if (serverError) {
         console.error('Server creation error:', serverError);
-        // Update order status to failed
         await supabase
           .from('orders')
           .update({ status: 'failed' })
@@ -185,15 +237,27 @@ const GameDetail = () => {
     }
   };
 
-  if (!game) {
+  if (loading) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!product) {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-20 text-center">
-          <h1 className="text-2xl font-bold text-foreground mb-4">Game not found</h1>
+          <h1 className="text-2xl font-bold text-foreground mb-4">
+            {language === 'nl' ? 'Product niet gevonden' : 'Product not found'}
+          </h1>
           <Button asChild>
             <Link to="/game-servers">
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Game Servers
+              {language === 'nl' ? 'Terug naar Game Servers' : 'Back to Game Servers'}
             </Link>
           </Button>
         </div>
@@ -201,14 +265,16 @@ const GameDetail = () => {
     );
   }
 
+  const isUnavailable = product.temporarily_unavailable;
+
   return (
     <Layout>
       {/* Hero */}
       <section className="relative h-[40vh] min-h-[300px] overflow-hidden">
         <img
-          src={game.image}
-          alt={game.name}
-          className="absolute inset-0 w-full h-full object-cover"
+          src={getProductImage()}
+          alt={product.name}
+          className={`absolute inset-0 w-full h-full object-cover ${isUnavailable ? 'grayscale' : ''}`}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
         <div className="container mx-auto px-4 h-full flex items-end pb-8 relative">
@@ -220,7 +286,14 @@ const GameDetail = () => {
               <ArrowLeft className="mr-2 h-4 w-4" />
               {t('nav.gameServers')}
             </Link>
-            <h1 className="text-4xl md:text-5xl font-bold text-foreground">{game.name}</h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-4xl md:text-5xl font-bold text-foreground">{product.name}</h1>
+              {isUnavailable && (
+                <span className="px-3 py-1 text-sm font-medium bg-destructive text-destructive-foreground rounded-full">
+                  {language === 'nl' ? 'Tijdelijk niet beschikbaar' : 'Temporarily unavailable'}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -229,10 +302,55 @@ const GameDetail = () => {
       <section className="py-12 border-b border-border">
         <div className="container mx-auto px-4">
           <p className="text-lg text-muted-foreground max-w-3xl">
-            {game.description[language]}
+            {product.description || ''}
           </p>
         </div>
       </section>
+
+      {/* Variant Selection */}
+      {variants.length > 0 && (
+        <section className="py-8 border-b border-border">
+          <div className="container mx-auto px-4">
+            <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
+              <Server className="h-5 w-5 text-primary" />
+              {language === 'nl' ? 'Kies je server type' : 'Choose your server type'}
+            </h2>
+            <RadioGroup
+              value={selectedVariant || ''}
+              onValueChange={setSelectedVariant}
+              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+            >
+              {variants.map((variant) => (
+                <div key={variant.id} className="relative">
+                  <RadioGroupItem
+                    value={variant.id}
+                    id={variant.id}
+                    className="peer sr-only"
+                    disabled={isUnavailable}
+                  />
+                  <Label
+                    htmlFor={variant.id}
+                    className={`flex flex-col p-4 rounded-xl border-2 cursor-pointer transition-all
+                      ${isUnavailable ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary/50'}
+                      peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5
+                      ${selectedVariant === variant.id ? 'border-primary bg-primary/5' : 'border-border'}`}
+                  >
+                    <span className="font-semibold text-foreground">{variant.name}</span>
+                    {variant.description && (
+                      <span className="text-sm text-muted-foreground mt-1">{variant.description}</span>
+                    )}
+                    {variant.is_default && (
+                      <span className="text-xs text-primary mt-2">
+                        {language === 'nl' ? 'Aanbevolen' : 'Recommended'}
+                      </span>
+                    )}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
+        </section>
+      )}
 
       {/* Pricing */}
       <section className="py-16">
@@ -241,59 +359,72 @@ const GameDetail = () => {
             {language === 'nl' ? 'Kies je pakket' : 'Choose your plan'}
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {game.plans.map((plan, index) => (
-              <div
-                key={index}
-                className={`relative rounded-2xl bg-card border p-6 hover-lift ${
-                  plan.popular ? 'border-primary ring-2 ring-primary/20' : 'border-border'
-                }`}
-              >
-                {plan.popular && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 text-xs font-medium bg-primary text-primary-foreground rounded-full">
-                    {t('pricing.popular')}
-                  </span>
-                )}
-
-                <h3 className="text-xl font-bold text-foreground mb-2">{plan.name}</h3>
-                <p className="text-3xl font-bold text-foreground mb-6">
-                  €{plan.price.toFixed(2)}
-                  <span className="text-sm font-normal text-muted-foreground">{t('games.perMonth')}</span>
-                </p>
-
-                <ul className="space-y-3 mb-6">
-                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Cpu className="h-4 w-4 text-primary" />
-                    {plan.ram} GB RAM
-                  </li>
-                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Users className="h-4 w-4 text-primary" />
-                    {plan.slots} {language === 'nl' ? 'spelers' : 'players'}
-                  </li>
-                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <HardDrive className="h-4 w-4 text-primary" />
-                    {plan.storage} GB SSD
-                  </li>
-                </ul>
-
-                <Button
-                  className={`w-full ${plan.popular ? 'gaming-gradient-bg hover:opacity-90' : ''}`}
-                  variant={plan.popular ? 'default' : 'outline'}
-                  onClick={() => handleOrder(plan)}
-                  disabled={isOrdering !== null}
+          <div className={`grid grid-cols-1 md:grid-cols-2 ${plans.length >= 3 ? 'lg:grid-cols-3' : ''} ${plans.length >= 4 ? 'xl:grid-cols-4' : ''} gap-6`}>
+            {plans.map((plan, index) => {
+              const isPopular = index === 1;
+              return (
+                <div
+                  key={plan.id}
+                  className={`relative rounded-2xl bg-card border p-6 hover-lift ${
+                    isPopular ? 'border-primary ring-2 ring-primary/20' : 'border-border'
+                  } ${isUnavailable ? 'opacity-75' : ''}`}
                 >
-                  {isOrdering === plan.name ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {language === 'nl' ? 'Bezig...' : 'Processing...'}
-                    </>
-                  ) : (
-                    t('pricing.orderNow')
+                  {isPopular && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 text-xs font-medium bg-primary text-primary-foreground rounded-full">
+                      {t('pricing.popular')}
+                    </span>
                   )}
-                </Button>
-              </div>
-            ))}
+
+                  <h3 className="text-xl font-bold text-foreground mb-2">{plan.name}</h3>
+                  <p className="text-3xl font-bold text-foreground mb-6">
+                    €{plan.price.toFixed(2)}
+                    <span className="text-sm font-normal text-muted-foreground">{t('games.perMonth')}</span>
+                  </p>
+
+                  <ul className="space-y-3 mb-6">
+                    <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Cpu className="h-4 w-4 text-primary" />
+                      {plan.ram >= 1024 ? `${(plan.ram / 1024).toFixed(0)} GB` : `${plan.ram} MB`} RAM
+                    </li>
+                    <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Users className="h-4 w-4 text-primary" />
+                      {plan.cpu}% CPU
+                    </li>
+                    <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <HardDrive className="h-4 w-4 text-primary" />
+                      {plan.disk >= 1024 ? `${(plan.disk / 1024).toFixed(0)} GB` : `${plan.disk} MB`} SSD
+                    </li>
+                  </ul>
+
+                  <Button
+                    className={`w-full ${isPopular && !isUnavailable ? 'gaming-gradient-bg hover:opacity-90' : ''}`}
+                    variant={isPopular && !isUnavailable ? 'default' : 'outline'}
+                    onClick={() => handleOrder(plan)}
+                    disabled={isOrdering !== null || isUnavailable}
+                  >
+                    {isOrdering === plan.name ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {language === 'nl' ? 'Bezig...' : 'Processing...'}
+                      </>
+                    ) : isUnavailable ? (
+                      language === 'nl' ? 'Niet beschikbaar' : 'Unavailable'
+                    ) : (
+                      t('pricing.orderNow')
+                    )}
+                  </Button>
+                </div>
+              );
+            })}
           </div>
+
+          {plans.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">
+                {language === 'nl' ? 'Geen plannen beschikbaar' : 'No plans available'}
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -306,7 +437,7 @@ const GameDetail = () => {
 
           <div className="max-w-2xl mx-auto">
             <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {game.features[language].map((feature, index) => (
+              {getFeatures().map((feature, index) => (
                 <li key={index} className="flex items-center gap-3">
                   <div className="w-6 h-6 rounded-full gaming-gradient-bg flex items-center justify-center">
                     <Check className="h-4 w-4 text-white" />

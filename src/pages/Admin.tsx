@@ -65,6 +65,20 @@ interface ProductPlan {
   is_active: boolean;
 }
 
+interface ProductVariant {
+  id: string;
+  product_id: string;
+  name: string;
+  description: string | null;
+  egg_id: number | null;
+  nest_id: number | null;
+  docker_image: string | null;
+  startup_command: string | null;
+  is_default: boolean;
+  is_active: boolean;
+  sort_order: number;
+}
+
 const Admin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -85,9 +99,12 @@ const Admin = () => {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
+  const [variantDialogOpen, setVariantDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editingPlan, setEditingPlan] = useState<ProductPlan | null>(null);
+  const [editingVariant, setEditingVariant] = useState<ProductVariant | null>(null);
   const [expandedProducts, setExpandedProducts] = useState<string[]>([]);
+  const [productVariants, setProductVariants] = useState<ProductVariant[]>([]);
 
   // Product form state
   const [productForm, setProductForm] = useState({
@@ -123,6 +140,20 @@ const Admin = () => {
     is_active: true,
   });
 
+  // Variant form state
+  const [variantForm, setVariantForm] = useState({
+    product_id: '',
+    name: '',
+    description: '',
+    egg_id: 0,
+    nest_id: 0,
+    docker_image: '',
+    startup_command: '',
+    is_default: false,
+    is_active: true,
+    sort_order: 0,
+  });
+
   useEffect(() => {
     checkAdminAccess();
   }, []);
@@ -150,7 +181,7 @@ const Admin = () => {
     }
 
     setIsAdmin(true);
-    await Promise.all([fetchUsers(), fetchOrders(), fetchUserRoles(), fetchProducts(), fetchProductPlans()]);
+    await Promise.all([fetchUsers(), fetchOrders(), fetchUserRoles(), fetchProducts(), fetchProductPlans(), fetchProductVariants()]);
     setLoading(false);
   };
 
@@ -196,6 +227,15 @@ const Admin = () => {
       .order('price', { ascending: true });
     
     if (data) setProductPlans(data as ProductPlan[]);
+  };
+
+  const fetchProductVariants = async () => {
+    const { data } = await supabase
+      .from('product_variants')
+      .select('*')
+      .order('sort_order', { ascending: true });
+    
+    if (data) setProductVariants(data as ProductVariant[]);
   };
 
   const getUserRole = (userId: string) => {
@@ -343,6 +383,48 @@ const Admin = () => {
     }
   };
 
+  const handleSaveVariant = async () => {
+    if (editingVariant) {
+      const { error } = await supabase
+        .from('product_variants')
+        .update(variantForm)
+        .eq('id', editingVariant.id);
+
+      if (error) {
+        toast({ title: t('admin.error'), description: error.message, variant: 'destructive' });
+        return;
+      }
+    } else {
+      const { error } = await supabase
+        .from('product_variants')
+        .insert([variantForm]);
+
+      if (error) {
+        toast({ title: t('admin.error'), description: error.message, variant: 'destructive' });
+        return;
+      }
+    }
+
+    toast({ title: t('admin.success'), description: 'Variant opgeslagen' });
+    setVariantDialogOpen(false);
+    resetVariantForm();
+    fetchProductVariants();
+  };
+
+  const handleDeleteVariant = async (id: string) => {
+    const { error } = await supabase
+      .from('product_variants')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      toast({ title: t('admin.error'), description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: t('admin.success'), description: 'Variant verwijderd' });
+      fetchProductVariants();
+    }
+  };
+
   const resetProductForm = () => {
     setEditingProduct(null);
     setProductForm({
@@ -378,6 +460,22 @@ const Admin = () => {
       databases: 1,
       backups: 1,
       is_active: true,
+    });
+  };
+
+  const resetVariantForm = () => {
+    setEditingVariant(null);
+    setVariantForm({
+      product_id: '',
+      name: '',
+      description: '',
+      egg_id: 0,
+      nest_id: 0,
+      docker_image: '',
+      startup_command: '',
+      is_default: false,
+      is_active: true,
+      sort_order: 0,
     });
   };
 
@@ -425,6 +523,29 @@ const Admin = () => {
     resetPlanForm();
     setPlanForm(prev => ({ ...prev, product_id: productId }));
     setPlanDialogOpen(true);
+  };
+
+  const openEditVariant = (variant: ProductVariant) => {
+    setEditingVariant(variant);
+    setVariantForm({
+      product_id: variant.product_id,
+      name: variant.name,
+      description: variant.description || '',
+      egg_id: variant.egg_id || 0,
+      nest_id: variant.nest_id || 0,
+      docker_image: variant.docker_image || '',
+      startup_command: variant.startup_command || '',
+      is_default: variant.is_default,
+      is_active: variant.is_active,
+      sort_order: variant.sort_order,
+    });
+    setVariantDialogOpen(true);
+  };
+
+  const openAddVariant = (productId: string) => {
+    resetVariantForm();
+    setVariantForm(prev => ({ ...prev, product_id: productId }));
+    setVariantDialogOpen(true);
   };
 
   const toggleProductExpanded = (productId: string) => {
@@ -746,60 +867,122 @@ const Admin = () => {
                         </div>
                       </CardHeader>
                       <CollapsibleContent>
-                        <CardContent className="pt-0">
-                          <div className="flex justify-between items-center mb-4">
-                            <h4 className="font-medium">{t('admin.plans')}</h4>
-                            <Button variant="outline" size="sm" onClick={() => openAddPlan(product.id)}>
-                              <Plus className="h-4 w-4 mr-1" />
-                              {t('admin.addPlan')}
-                            </Button>
-                          </div>
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead>{t('admin.name')}</TableHead>
-                                <TableHead>{t('admin.price')}</TableHead>
-                                <TableHead>RAM</TableHead>
-                                <TableHead>CPU</TableHead>
-                                <TableHead>Disk</TableHead>
-                                <TableHead>{t('admin.status')}</TableHead>
-                                <TableHead>{t('admin.actions')}</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {productPlans.filter(p => p.product_id === product.id).map((plan) => (
-                                <TableRow key={plan.id}>
-                                  <TableCell>{plan.name}</TableCell>
-                                  <TableCell>€{plan.price.toFixed(2)}</TableCell>
-                                  <TableCell>{plan.ram} MB</TableCell>
-                                  <TableCell>{plan.cpu}%</TableCell>
-                                  <TableCell>{plan.disk} MB</TableCell>
-                                  <TableCell>
-                                    <Badge variant={plan.is_active ? 'default' : 'secondary'}>
-                                      {plan.is_active ? 'Actief' : 'Inactief'}
-                                    </Badge>
-                                  </TableCell>
-                                  <TableCell>
-                                    <div className="flex gap-2">
-                                      <Button variant="outline" size="sm" onClick={() => openEditPlan(plan)}>
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                      <Button variant="destructive" size="sm" onClick={() => handleDeletePlan(plan.id)}>
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                              {productPlans.filter(p => p.product_id === product.id).length === 0 && (
+                        <CardContent className="pt-0 space-y-8">
+                          {/* Plans Section */}
+                          <div>
+                            <div className="flex justify-between items-center mb-4">
+                              <h4 className="font-medium">{t('admin.plans')}</h4>
+                              <Button variant="outline" size="sm" onClick={() => openAddPlan(product.id)}>
+                                <Plus className="h-4 w-4 mr-1" />
+                                {t('admin.addPlan')}
+                              </Button>
+                            </div>
+                            <Table>
+                              <TableHeader>
                                 <TableRow>
-                                  <TableCell colSpan={7} className="text-center text-muted-foreground py-4">
-                                    {t('admin.noPlans')}
-                                  </TableCell>
+                                  <TableHead>{t('admin.name')}</TableHead>
+                                  <TableHead>{t('admin.price')}</TableHead>
+                                  <TableHead>RAM</TableHead>
+                                  <TableHead>CPU</TableHead>
+                                  <TableHead>Disk</TableHead>
+                                  <TableHead>{t('admin.status')}</TableHead>
+                                  <TableHead>{t('admin.actions')}</TableHead>
                                 </TableRow>
-                              )}
-                            </TableBody>
-                          </Table>
+                              </TableHeader>
+                              <TableBody>
+                                {productPlans.filter(p => p.product_id === product.id).map((plan) => (
+                                  <TableRow key={plan.id}>
+                                    <TableCell>{plan.name}</TableCell>
+                                    <TableCell>€{plan.price.toFixed(2)}</TableCell>
+                                    <TableCell>{plan.ram} MB</TableCell>
+                                    <TableCell>{plan.cpu}%</TableCell>
+                                    <TableCell>{plan.disk} MB</TableCell>
+                                    <TableCell>
+                                      <Badge variant={plan.is_active ? 'default' : 'secondary'}>
+                                        {plan.is_active ? 'Actief' : 'Inactief'}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex gap-2">
+                                        <Button variant="outline" size="sm" onClick={() => openEditPlan(plan)}>
+                                          <Pencil className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="destructive" size="sm" onClick={() => handleDeletePlan(plan.id)}>
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                                {productPlans.filter(p => p.product_id === product.id).length === 0 && (
+                                  <TableRow>
+                                    <TableCell colSpan={7} className="text-center text-muted-foreground py-4">
+                                      {t('admin.noPlans')}
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+
+                          {/* Variants Section */}
+                          <div>
+                            <div className="flex justify-between items-center mb-4">
+                              <h4 className="font-medium">Varianten (Server Types)</h4>
+                              <Button variant="outline" size="sm" onClick={() => openAddVariant(product.id)}>
+                                <Plus className="h-4 w-4 mr-1" />
+                                Variant Toevoegen
+                              </Button>
+                            </div>
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>{t('admin.name')}</TableHead>
+                                  <TableHead>Beschrijving</TableHead>
+                                  <TableHead>Egg ID</TableHead>
+                                  <TableHead>Standaard</TableHead>
+                                  <TableHead>{t('admin.status')}</TableHead>
+                                  <TableHead>{t('admin.actions')}</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {productVariants.filter(v => v.product_id === product.id).map((variant) => (
+                                  <TableRow key={variant.id}>
+                                    <TableCell>{variant.name}</TableCell>
+                                    <TableCell className="max-w-xs truncate">{variant.description || '-'}</TableCell>
+                                    <TableCell>{variant.egg_id || '-'}</TableCell>
+                                    <TableCell>
+                                      {variant.is_default && (
+                                        <Badge variant="outline">Standaard</Badge>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge variant={variant.is_active ? 'default' : 'secondary'}>
+                                        {variant.is_active ? 'Actief' : 'Inactief'}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex gap-2">
+                                        <Button variant="outline" size="sm" onClick={() => openEditVariant(variant)}>
+                                          <Pencil className="h-4 w-4" />
+                                        </Button>
+                                        <Button variant="destructive" size="sm" onClick={() => handleDeleteVariant(variant.id)}>
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                                {productVariants.filter(v => v.product_id === product.id).length === 0 && (
+                                  <TableRow>
+                                    <TableCell colSpan={6} className="text-center text-muted-foreground py-4">
+                                      Geen varianten. Voeg varianten toe om klanten te laten kiezen (bijv. Vanilla, PaperMC, Forge).
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
                         </CardContent>
                       </CollapsibleContent>
                     </Card>
@@ -1240,6 +1423,94 @@ const Admin = () => {
             <DialogFooter>
               <Button variant="outline" onClick={() => setPlanDialogOpen(false)}>{t('admin.cancel')}</Button>
               <Button onClick={handleSavePlan}>{t('admin.save')}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Variant Dialog */}
+        <Dialog open={variantDialogOpen} onOpenChange={setVariantDialogOpen}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>{editingVariant ? 'Variant Bewerken' : 'Variant Toevoegen'}</DialogTitle>
+              <DialogDescription>
+                Varianten bepalen welke server type de klant kan kiezen (bijv. Vanilla, PaperMC, Forge).
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4 py-4">
+              <div className="space-y-2">
+                <Label>{t('admin.name')}</Label>
+                <Input
+                  value={variantForm.name}
+                  onChange={(e) => setVariantForm({ ...variantForm, name: e.target.value })}
+                  placeholder="bijv. Vanilla, PaperMC, Forge"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Volgorde</Label>
+                <Input
+                  type="number"
+                  value={variantForm.sort_order}
+                  onChange={(e) => setVariantForm({ ...variantForm, sort_order: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="col-span-2 space-y-2">
+                <Label>Beschrijving</Label>
+                <Textarea
+                  value={variantForm.description}
+                  onChange={(e) => setVariantForm({ ...variantForm, description: e.target.value })}
+                  placeholder="Korte beschrijving van deze variant"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Egg ID (Pterodactyl)</Label>
+                <Input
+                  type="number"
+                  value={variantForm.egg_id}
+                  onChange={(e) => setVariantForm({ ...variantForm, egg_id: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Nest ID (Pterodactyl)</Label>
+                <Input
+                  type="number"
+                  value={variantForm.nest_id}
+                  onChange={(e) => setVariantForm({ ...variantForm, nest_id: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="col-span-2 space-y-2">
+                <Label>Docker Image</Label>
+                <Input
+                  value={variantForm.docker_image}
+                  onChange={(e) => setVariantForm({ ...variantForm, docker_image: e.target.value })}
+                  placeholder="bijv. ghcr.io/pterodactyl/yolks:java_17"
+                />
+              </div>
+              <div className="col-span-2 space-y-2">
+                <Label>Startup Command</Label>
+                <Textarea
+                  value={variantForm.startup_command}
+                  onChange={(e) => setVariantForm({ ...variantForm, startup_command: e.target.value })}
+                  placeholder="Server startup command"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={variantForm.is_default}
+                  onCheckedChange={(v) => setVariantForm({ ...variantForm, is_default: v })}
+                />
+                <Label>Standaard variant</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={variantForm.is_active}
+                  onCheckedChange={(v) => setVariantForm({ ...variantForm, is_active: v })}
+                />
+                <Label>{t('admin.active')}</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setVariantDialogOpen(false)}>{t('admin.cancel')}</Button>
+              <Button onClick={handleSaveVariant}>{t('admin.save')}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

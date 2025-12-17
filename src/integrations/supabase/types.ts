@@ -27,6 +27,8 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string
+          variant_id: string | null
+          variant_name: string | null
         }
         Insert: {
           created_at?: string
@@ -40,6 +42,8 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id: string
+          variant_id?: string | null
+          variant_name?: string | null
         }
         Update: {
           created_at?: string
@@ -53,8 +57,18 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string
+          variant_id?: string | null
+          variant_name?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       product_plans: {
         Row: {
@@ -102,6 +116,62 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "product_plans_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_variants: {
+        Row: {
+          created_at: string
+          description: string | null
+          docker_image: string | null
+          egg_id: number | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          nest_id: number | null
+          product_id: string
+          sort_order: number
+          startup_command: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          docker_image?: string | null
+          egg_id?: number | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          nest_id?: number | null
+          product_id: string
+          sort_order?: number
+          startup_command?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          docker_image?: string | null
+          egg_id?: number | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          nest_id?: number | null
+          product_id?: string
+          sort_order?: number
+          startup_command?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
