@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Package, LogOut, Settings, Server } from 'lucide-react';
+import { User, Package, LogOut, Settings, Server, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -17,6 +18,8 @@ interface Order {
   price: number;
   status: string;
   created_at: string;
+  pterodactyl_server_id?: number;
+  pterodactyl_identifier?: string;
 }
 
 const Dashboard = () => {
@@ -85,6 +88,7 @@ const Dashboard = () => {
         return 'bg-yellow-500/20 text-yellow-500';
       case 'cancelled':
       case 'failed':
+      case 'suspended':
         return 'bg-red-500/20 text-red-500';
       default:
         return 'bg-muted text-muted-foreground';
@@ -94,6 +98,75 @@ const Dashboard = () => {
   const getStatusText = (status: string) => {
     return t(`order.status.${status}`) || status;
   };
+
+  // Active orders (not cancelled, failed, or suspended)
+  const activeOrders = orders.filter(o => !['cancelled', 'failed', 'suspended'].includes(o.status));
+  // Archived orders (cancelled, failed, or suspended)
+  const archivedOrders = orders.filter(o => ['cancelled', 'failed', 'suspended'].includes(o.status));
+
+  const renderOrdersTable = (ordersList: Order[], emptyMessage: string) => (
+    ordersList.length === 0 ? (
+      <div className="text-center py-12">
+        <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+        <p className="text-muted-foreground">{emptyMessage}</p>
+      </div>
+    ) : (
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.product')}</th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.plan')}</th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.price')}</th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.status')}</th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.date')}</th>
+              <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.actions')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ordersList.map((order) => (
+              <tr 
+                key={order.id} 
+                className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors"
+                onClick={() => {
+                  setSelectedOrder(order);
+                  setModalOpen(true);
+                }}
+              >
+                <td className="py-3 px-4">
+                  <div className="font-medium text-foreground">{order.product_name}</div>
+                  <div className="text-sm text-muted-foreground">{order.product_type}</div>
+                </td>
+                <td className="py-3 px-4 text-foreground">{order.plan_name}</td>
+                <td className="py-3 px-4 text-foreground">€{order.price.toFixed(2)}/mo</td>
+                <td className="py-3 px-4">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                    {getStatusText(order.status)}
+                  </span>
+                </td>
+                <td className="py-3 px-4 text-muted-foreground">
+                  {new Date(order.created_at).toLocaleDateString()}
+                </td>
+                <td className="py-3 px-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedOrder(order);
+                      setModalOpen(true);
+                    }}
+                  >
+                    {t('dashboard.viewDetails')}
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  );
 
   if (loading) {
     return (
@@ -116,7 +189,7 @@ const Dashboard = () => {
               <p className="text-muted-foreground">{t('dashboard.welcome')}, {user?.user_metadata?.full_name || user?.email}</p>
             </div>
             <div className="flex gap-3">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => navigate('/settings')}>
                 <Settings className="w-4 h-4 mr-2" />
                 {t('dashboard.settings')}
               </Button>
@@ -128,7 +201,7 @@ const Dashboard = () => {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="glass-effect rounded-xl p-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 gaming-gradient-bg rounded-xl flex items-center justify-center">
@@ -150,8 +223,19 @@ const Dashboard = () => {
                 <div>
                   <p className="text-sm text-muted-foreground">{t('dashboard.pendingOrders')}</p>
                   <p className="text-2xl font-bold text-foreground">
-                    {orders.filter(o => o.status === 'pending').length}
+                    {orders.filter(o => o.status === 'pending' || o.status === 'provisioning').length}
                   </p>
+                </div>
+              </div>
+            </div>
+            <div className="glass-effect rounded-xl p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center">
+                  <Archive className="w-6 h-6 text-red-500" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('dashboard.archivedServers')}</p>
+                  <p className="text-2xl font-bold text-foreground">{archivedOrders.length}</p>
                 </div>
               </div>
             </div>
@@ -168,7 +252,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Orders */}
+          {/* Orders with Tabs */}
           <div className="glass-effect rounded-xl p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-foreground">{t('dashboard.yourOrders')}</h2>
@@ -177,70 +261,26 @@ const Dashboard = () => {
               </Button>
             </div>
 
-            {orders.length === 0 ? (
-              <div className="text-center py-12">
-                <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">{t('dashboard.noOrders')}</p>
-                <Button asChild className="mt-4 gaming-gradient-bg hover:opacity-90">
-                  <a href="/game-servers">{t('dashboard.startNow')}</a>
-                </Button>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.product')}</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.plan')}</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.price')}</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.status')}</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.date')}</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.actions')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orders.map((order) => (
-                      <tr 
-                        key={order.id} 
-                        className="border-b border-border/50 hover:bg-muted/30 cursor-pointer transition-colors"
-                        onClick={() => {
-                          setSelectedOrder(order);
-                          setModalOpen(true);
-                        }}
-                      >
-                        <td className="py-3 px-4">
-                          <div className="font-medium text-foreground">{order.product_name}</div>
-                          <div className="text-sm text-muted-foreground">{order.product_type}</div>
-                        </td>
-                        <td className="py-3 px-4 text-foreground">{order.plan_name}</td>
-                        <td className="py-3 px-4 text-foreground">€{order.price.toFixed(2)}/mo</td>
-                        <td className="py-3 px-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                            {getStatusText(order.status)}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-muted-foreground">
-                          {new Date(order.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="py-3 px-4">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedOrder(order);
-                              setModalOpen(true);
-                            }}
-                          >
-                            {t('dashboard.viewDetails')}
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <Tabs defaultValue="active" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="active" className="flex items-center gap-2">
+                  <Server className="h-4 w-4" />
+                  {t('dashboard.activeTab')} ({activeOrders.length})
+                </TabsTrigger>
+                <TabsTrigger value="archive" className="flex items-center gap-2">
+                  <Archive className="h-4 w-4" />
+                  {t('dashboard.archiveTab')} ({archivedOrders.length})
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="active">
+                {renderOrdersTable(activeOrders, t('dashboard.noActiveOrders'))}
+              </TabsContent>
+
+              <TabsContent value="archive">
+                {renderOrdersTable(archivedOrders, t('dashboard.noArchivedOrders'))}
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </section>

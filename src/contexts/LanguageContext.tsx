@@ -171,6 +171,11 @@ const translations: Translations = {
   'dashboard.serverCancelled': { nl: 'Server is opgezegd', en: 'Server has been cancelled' },
   'dashboard.cancelError': { nl: 'Er ging iets mis bij het opzeggen', en: 'Something went wrong while cancelling' },
   'dashboard.contactSupport': { nl: 'Neem contact op', en: 'Contact Support' },
+  'dashboard.activeTab': { nl: 'Actief', en: 'Active' },
+  'dashboard.archiveTab': { nl: 'Archief', en: 'Archive' },
+  'dashboard.archivedServers': { nl: 'Gearchiveerd', en: 'Archived' },
+  'dashboard.noActiveOrders': { nl: 'Je hebt geen actieve bestellingen', en: 'You have no active orders' },
+  'dashboard.noArchivedOrders': { nl: 'Je hebt geen gearchiveerde bestellingen', en: 'You have no archived orders' },
 
   // Common
   'common.cancel': { nl: 'Annuleren', en: 'Cancel' },
@@ -245,6 +250,11 @@ const translations: Translations = {
   'admin.error': { nl: 'Fout', en: 'Error' },
   'admin.roleUpdated': { nl: 'Rol is bijgewerkt', en: 'Role has been updated' },
   'admin.orderUpdated': { nl: 'Bestelling is bijgewerkt', en: 'Order has been updated' },
+  'admin.archive': { nl: 'Archief', en: 'Archive' },
+  'admin.archiveManagement': { nl: 'Archief Beheer', en: 'Archive Management' },
+  'admin.archiveDescription': { nl: 'Geannuleerde, gefaalde en gesuspende bestellingen', en: 'Cancelled, failed and suspended orders' },
+  'admin.orderDescriptionActive': { nl: 'Bekijk en beheer actieve bestellingen', en: 'View and manage active orders' },
+  'admin.noArchivedOrders': { nl: 'Geen gearchiveerde bestellingen', en: 'No archived orders' },
 };
 
 interface LanguageContextType {
