@@ -40,6 +40,7 @@ interface Product {
   image_url: string | null;
   category: string;
   is_active: boolean;
+  is_popular: boolean;
   temporarily_unavailable: boolean;
   min_ram: number;
   min_cpu: number;
@@ -145,6 +146,7 @@ const Admin = () => {
     image_url: '',
     category: 'game',
     is_active: true,
+    is_popular: false,
     temporarily_unavailable: false,
     min_ram: 2048,
     min_cpu: 100,
@@ -587,6 +589,7 @@ const Admin = () => {
       image_url: '',
       category: 'game',
       is_active: true,
+      is_popular: false,
       temporarily_unavailable: false,
       min_ram: 2048,
       min_cpu: 100,
@@ -641,6 +644,7 @@ const Admin = () => {
       image_url: product.image_url || '',
       category: product.category,
       is_active: product.is_active,
+      is_popular: product.is_popular || false,
       temporarily_unavailable: product.temporarily_unavailable || false,
       min_ram: product.min_ram,
       min_cpu: product.min_cpu,
@@ -1712,6 +1716,13 @@ const Admin = () => {
                   onCheckedChange={(v) => setProductForm({ ...productForm, temporarily_unavailable: v })}
                 />
                 <Label>Tijdelijk niet beschikbaar</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={productForm.is_popular}
+                  onCheckedChange={(v) => setProductForm({ ...productForm, is_popular: v })}
+                />
+                <Label>{language === 'nl' ? 'Populair' : 'Popular'}</Label>
               </div>
             </div>
             <DialogFooter>

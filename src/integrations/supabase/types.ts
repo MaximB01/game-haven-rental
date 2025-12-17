@@ -263,6 +263,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_active: boolean
+          is_popular: boolean
           min_cpu: number
           min_disk: number
           min_ram: number
@@ -285,6 +286,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean
+          is_popular?: boolean
           min_cpu?: number
           min_disk?: number
           min_ram?: number
@@ -307,6 +309,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_active?: boolean
+          is_popular?: boolean
           min_cpu?: number
           min_disk?: number
           min_ram?: number

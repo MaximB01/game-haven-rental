@@ -28,6 +28,7 @@ interface Product {
   category: string;
   display_type: string;
   is_active: boolean;
+  is_popular: boolean;
   temporarily_unavailable: boolean;
   created_at: string;
 }
@@ -93,9 +94,7 @@ const GameServers = () => {
     
     // Filter logic
     if (filter === 'popular') {
-      // Popular: products with the most plans or highest priced plans (as a proxy for popularity)
-      const productPlans = plans.filter(p => p.product_id === product.id);
-      if (productPlans.length < 2) return false; // Consider products with multiple plans as "popular"
+      if (!product.is_popular) return false;
     }
     
     if (filter === 'new') {
