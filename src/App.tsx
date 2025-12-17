@@ -7,9 +7,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import Index from "./pages/Index";
 import GameServers from "./pages/GameServers";
 import GameDetail from "./pages/GameDetail";
-import VPS from "./pages/VPS";
-import BotHosting from "./pages/BotHosting";
-import WebHosting from "./pages/WebHosting";
+import DynamicProductPage from "./pages/DynamicProductPage";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Auth from "./pages/Auth";
@@ -32,9 +30,12 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/game-servers" element={<GameServers />} />
             <Route path="/game-servers/:gameId" element={<GameDetail />} />
-            <Route path="/vps" element={<VPS />} />
-            <Route path="/bot-hosting" element={<BotHosting />} />
-            <Route path="/web-hosting" element={<WebHosting />} />
+            {/* Dynamic product pages - handles VPS, Bot Hosting, Web Hosting, and any product with own_page */}
+            <Route path="/product/:slug" element={<DynamicProductPage />} />
+            {/* Legacy routes that redirect to dynamic pages */}
+            <Route path="/vps" element={<DynamicProductPage />} />
+            <Route path="/bot-hosting" element={<DynamicProductPage />} />
+            <Route path="/web-hosting" element={<DynamicProductPage />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/auth" element={<Auth />} />
