@@ -315,12 +315,25 @@ const translations: Translations = {
   
   // Status Page (Public)
   'statusPage.title': { nl: 'Server Status', en: 'Server Status' },
+  'statusPage.subtitle': { nl: 'Real-time overzicht van alle game servers', en: 'Real-time overview of all game servers' },
   'statusPage.noServer': { nl: 'Geen server opgegeven', en: 'No server specified' },
   'statusPage.noServerDesc': { nl: 'Voeg een server ID toe aan de URL (?id=identifier)', en: 'Add a server ID to the URL (?id=identifier)' },
   'statusPage.limit': { nl: 'Limiet', en: 'Limit' },
   'statusPage.download': { nl: 'Download', en: 'Download' },
   'statusPage.upload': { nl: 'Upload', en: 'Upload' },
-  'statusPage.autoRefresh': { nl: 'Status wordt elke 30 seconden automatisch ververst', en: 'Status auto-refreshes every 30 seconds' },
+  'statusPage.autoRefresh': { nl: 'Status wordt elke 60 seconden automatisch ververst', en: 'Status auto-refreshes every 60 seconds' },
+  'statusPage.loading': { nl: 'Status laden...', en: 'Loading status...' },
+  'statusPage.operational': { nl: 'Alle systemen operationeel', en: 'All systems operational' },
+  'statusPage.degraded': { nl: 'Verslechterde prestaties', en: 'Degraded performance' },
+  'statusPage.partial': { nl: 'Gedeeltelijk operationeel', en: 'Partially operational' },
+  'statusPage.down': { nl: 'Systemen offline', en: 'Systems offline' },
+  'statusPage.noServers': { nl: 'Geen actieve servers', en: 'No active servers' },
+  'statusPage.lastUpdated': { nl: 'Laatst bijgewerkt', en: 'Last updated' },
+  'statusPage.online': { nl: 'Online', en: 'Online' },
+  'statusPage.offline': { nl: 'Offline', en: 'Offline' },
+  'statusPage.starting': { nl: 'Opstarten', en: 'Starting' },
+  'statusPage.errors': { nl: 'Fouten', en: 'Errors' },
+  'statusPage.servers': { nl: 'Game Servers', en: 'Game Servers' },
 };
 
 interface LanguageContextType {
