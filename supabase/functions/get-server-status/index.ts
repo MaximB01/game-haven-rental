@@ -38,7 +38,20 @@ serve(async (req) => {
       pterodactylUrl = `https://${pterodactylUrl}`;
     }
 
+    // Pterodactyl: Client keys usually start with "ptlc_" and Application keys with "ptla_"
+    if (pterodactylClientApiKey.startsWith('ptla_')) {
+      console.error('PTERODACTYL_CLIENT_API_KEY appears to be an application key (ptla_), but /api/client requires a client key (ptlc_).');
+      return new Response(
+        JSON.stringify({
+          error: 'Wrong Pterodactyl API key type',
+          details: 'Please set PTERODACTYL_CLIENT_API_KEY to a Client API key (starts with ptlc_), not an Application key (ptla_).'
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log(`Fetching server status for identifier: ${identifier}`);
+    console.log(`Pterodactyl key prefix: ${pterodactylClientApiKey.slice(0, 5)}..., length: ${pterodactylClientApiKey.length}`);
 
     // Get server resources/status from Pterodactyl Client API
     const response = await fetch(
