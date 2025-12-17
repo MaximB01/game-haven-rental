@@ -255,6 +255,36 @@ const translations: Translations = {
   'admin.archiveDescription': { nl: 'Geannuleerde, gefaalde en gesuspende bestellingen', en: 'Cancelled, failed and suspended orders' },
   'admin.orderDescriptionActive': { nl: 'Bekijk en beheer actieve bestellingen', en: 'View and manage active orders' },
   'admin.noArchivedOrders': { nl: 'Geen gearchiveerde bestellingen', en: 'No archived orders' },
+  
+  // Admin - Products
+  'admin.products': { nl: 'Producten', en: 'Products' },
+  'admin.productManagement': { nl: 'Productbeheer', en: 'Product Management' },
+  'admin.productDescription': { nl: 'Beheer game servers en andere producten', en: 'Manage game servers and other products' },
+  'admin.addProduct': { nl: 'Product Toevoegen', en: 'Add Product' },
+  'admin.editProduct': { nl: 'Product Bewerken', en: 'Edit Product' },
+  'admin.productSaved': { nl: 'Product is opgeslagen', en: 'Product has been saved' },
+  'admin.productDeleted': { nl: 'Product is verwijderd', en: 'Product has been deleted' },
+  'admin.noProducts': { nl: 'Nog geen producten', en: 'No products yet' },
+  'admin.totalProducts': { nl: 'Totaal Producten', en: 'Total Products' },
+  'admin.description': { nl: 'Beschrijving', en: 'Description' },
+  'admin.active': { nl: 'Actief', en: 'Active' },
+  
+  // Admin - Plans
+  'admin.plans': { nl: 'Plans', en: 'Plans' },
+  'admin.addPlan': { nl: 'Plan Toevoegen', en: 'Add Plan' },
+  'admin.editPlan': { nl: 'Plan Bewerken', en: 'Edit Plan' },
+  'admin.planSaved': { nl: 'Plan is opgeslagen', en: 'Plan has been saved' },
+  'admin.planDeleted': { nl: 'Plan is verwijderd', en: 'Plan has been deleted' },
+  'admin.noPlans': { nl: 'Nog geen plans voor dit product', en: 'No plans for this product yet' },
+  
+  // Admin - User Details
+  'admin.userDetails': { nl: 'Gebruiker Details', en: 'User Details' },
+  'admin.email': { nl: 'E-mail', en: 'Email' },
+  'admin.phone': { nl: 'Telefoon', en: 'Phone' },
+  'admin.address': { nl: 'Adres', en: 'Address' },
+  'admin.city': { nl: 'Stad', en: 'City' },
+  'admin.postalCode': { nl: 'Postcode', en: 'Postal Code' },
+  'admin.country': { nl: 'Land', en: 'Country' },
 };
 
 interface LanguageContextType {
