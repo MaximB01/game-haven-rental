@@ -1,8 +1,11 @@
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Check, Server, HardDrive, Users, Cpu } from 'lucide-react';
+import { useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Check, HardDrive, Users, Cpu, Loader2 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import minecraftImg from '@/assets/games/minecraft.jpg';
 import rustImg from '@/assets/games/rust.jpg';
 import valheimImg from '@/assets/games/valheim.jpg';
@@ -86,8 +89,101 @@ const gamesData = {
 const GameDetail = () => {
   const { gameId } = useParams<{ gameId: string }>();
   const { t, language } = useLanguage();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [isOrdering, setIsOrdering] = useState<string | null>(null);
 
   const game = gamesData[gameId as keyof typeof gamesData];
+
+  const handleOrder = async (plan: typeof game.plans[0]) => {
+    try {
+      setIsOrdering(plan.name);
+
+      // Check if user is logged in
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: language === 'nl' ? 'Inloggen vereist' : 'Login required',
+          description: language === 'nl' 
+            ? 'Je moet ingelogd zijn om te bestellen' 
+            : 'You need to be logged in to place an order',
+          variant: 'destructive',
+        });
+        navigate('/auth');
+        return;
+      }
+
+      // Create order in database
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user.id,
+          product_type: 'game_server',
+          product_name: game.name,
+          plan_name: plan.name,
+          price: plan.price,
+          status: 'provisioning',
+        })
+        .select()
+        .single();
+
+      if (orderError) {
+        console.error('Order creation error:', orderError);
+        throw new Error('Failed to create order');
+      }
+
+      // Call edge function to create Pterodactyl server
+      const { data: serverData, error: serverError } = await supabase.functions.invoke(
+        'create-pterodactyl-server',
+        {
+          body: {
+            orderId: order.id,
+            gameId: gameId,
+            planName: plan.name,
+            ram: plan.ram,
+            slots: plan.slots,
+            storage: plan.storage,
+            userId: user.id,
+            userEmail: user.email,
+          },
+        }
+      );
+
+      if (serverError) {
+        console.error('Server creation error:', serverError);
+        // Update order status to failed
+        await supabase
+          .from('orders')
+          .update({ status: 'failed' })
+          .eq('id', order.id);
+        throw new Error('Failed to create server');
+      }
+
+      if (serverData?.success) {
+        toast({
+          title: language === 'nl' ? 'Server aangemaakt!' : 'Server created!',
+          description: language === 'nl'
+            ? 'Je server wordt nu opgestart. Check je dashboard voor de status.'
+            : 'Your server is now starting up. Check your dashboard for status.',
+        });
+        navigate('/dashboard');
+      } else {
+        throw new Error(serverData?.error || 'Unknown error');
+      }
+    } catch (error) {
+      console.error('Order error:', error);
+      toast({
+        title: language === 'nl' ? 'Bestelling mislukt' : 'Order failed',
+        description: language === 'nl'
+          ? 'Er ging iets mis bij het aanmaken van je server. Probeer het opnieuw.'
+          : 'Something went wrong creating your server. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsOrdering(null);
+    }
+  };
 
   if (!game) {
     return (
@@ -183,8 +279,17 @@ const GameDetail = () => {
                 <Button
                   className={`w-full ${plan.popular ? 'gaming-gradient-bg hover:opacity-90' : ''}`}
                   variant={plan.popular ? 'default' : 'outline'}
+                  onClick={() => handleOrder(plan)}
+                  disabled={isOrdering !== null}
                 >
-                  {t('pricing.orderNow')}
+                  {isOrdering === plan.name ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {language === 'nl' ? 'Bezig...' : 'Processing...'}
+                    </>
+                  ) : (
+                    t('pricing.orderNow')
+                  )}
                 </Button>
               </div>
             ))}

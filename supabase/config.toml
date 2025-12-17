@@ -1,1 +1,4 @@
 project_id = "susqsuhzyxgowsylblvc"
+
+[functions.create-pterodactyl-server]
+verify_jwt = true

@@ -157,6 +157,13 @@ const translations: Translations = {
   'dashboard.price': { nl: 'Prijs', en: 'Price' },
   'dashboard.status': { nl: 'Status', en: 'Status' },
   'dashboard.date': { nl: 'Datum', en: 'Date' },
+
+  // Order Status
+  'order.status.pending': { nl: 'In behandeling', en: 'Pending' },
+  'order.status.provisioning': { nl: 'Server wordt aangemaakt', en: 'Provisioning' },
+  'order.status.active': { nl: 'Actief', en: 'Active' },
+  'order.status.failed': { nl: 'Mislukt', en: 'Failed' },
+  'order.status.cancelled': { nl: 'Geannuleerd', en: 'Cancelled' },
 };
 
 interface LanguageContextType {
