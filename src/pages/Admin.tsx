@@ -77,6 +77,8 @@ const Admin = () => {
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>('user');
   const [userDetailOpen, setUserDetailOpen] = useState(false);
+  const [orderDetailOpen, setOrderDetailOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -451,6 +453,12 @@ const Admin = () => {
     return <Badge variant={variants[role] || 'secondary'}>{role}</Badge>;
   };
 
+  const getUserName = (userId: string) => {
+    const user = users.find(u => u.user_id === userId);
+    return user?.full_name || '-';
+  };
+
+
   if (loading) {
     return (
       <Layout>
@@ -616,7 +624,7 @@ const Admin = () => {
                       <TableHead>{t('admin.plan')}</TableHead>
                       <TableHead>{t('admin.price')}</TableHead>
                       <TableHead>{t('admin.status')}</TableHead>
-                      <TableHead>{t('admin.userId')}</TableHead>
+                      <TableHead>{t('admin.customer')}</TableHead>
                       <TableHead>{t('admin.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -627,24 +635,41 @@ const Admin = () => {
                         <TableCell>{order.plan_name}</TableCell>
                         <TableCell>€{order.price.toFixed(2)}</TableCell>
                         <TableCell>{getStatusBadge(order.status)}</TableCell>
-                        <TableCell className="font-mono text-xs">{order.user_id.slice(0, 8)}...</TableCell>
                         <TableCell>
-                          <Select
-                            value={order.status}
-                            onValueChange={(value) => handleUpdateOrderStatus(order.id, value)}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="pending">Pending</SelectItem>
-                              <SelectItem value="provisioning">Provisioning</SelectItem>
-                              <SelectItem value="active">Active</SelectItem>
-                              <SelectItem value="suspended">Suspended</SelectItem>
-                              <SelectItem value="cancelled">Cancelled</SelectItem>
-                              <SelectItem value="failed">Failed</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div>
+                            <p className="font-medium">{getUserName(order.user_id)}</p>
+                            <p className="text-xs text-muted-foreground font-mono">{order.user_id.slice(0, 8)}...</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedOrder(order);
+                                setOrderDetailOpen(true);
+                              }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Select
+                              value={order.status}
+                              onValueChange={(value) => handleUpdateOrderStatus(order.id, value)}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="provisioning">Provisioning</SelectItem>
+                                <SelectItem value="active">Active</SelectItem>
+                                <SelectItem value="suspended">Suspended</SelectItem>
+                                <SelectItem value="cancelled">Cancelled</SelectItem>
+                                <SelectItem value="failed">Failed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -790,7 +815,7 @@ const Admin = () => {
                       <TableHead>{t('admin.plan')}</TableHead>
                       <TableHead>{t('admin.price')}</TableHead>
                       <TableHead>{t('admin.status')}</TableHead>
-                      <TableHead>{t('admin.userId')}</TableHead>
+                      <TableHead>{t('admin.customer')}</TableHead>
                       <TableHead>{t('admin.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -808,22 +833,39 @@ const Admin = () => {
                           <TableCell>{order.plan_name}</TableCell>
                           <TableCell>€{order.price.toFixed(2)}</TableCell>
                           <TableCell>{getStatusBadge(order.status)}</TableCell>
-                          <TableCell className="font-mono text-xs">{order.user_id.slice(0, 8)}...</TableCell>
                           <TableCell>
-                            <Select
-                              value={order.status}
-                              onValueChange={(value) => handleUpdateOrderStatus(order.id, value)}
-                            >
-                              <SelectTrigger className="w-32">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="active">Reactivate</SelectItem>
-                                <SelectItem value="suspended">Suspended</SelectItem>
-                                <SelectItem value="cancelled">Cancelled</SelectItem>
-                                <SelectItem value="failed">Failed</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <div>
+                              <p className="font-medium">{getUserName(order.user_id)}</p>
+                              <p className="text-xs text-muted-foreground font-mono">{order.user_id.slice(0, 8)}...</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedOrder(order);
+                                  setOrderDetailOpen(true);
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Select
+                                value={order.status}
+                                onValueChange={(value) => handleUpdateOrderStatus(order.id, value)}
+                              >
+                                <SelectTrigger className="w-32">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="active">Reactivate</SelectItem>
+                                  <SelectItem value="suspended">Suspended</SelectItem>
+                                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                                  <SelectItem value="failed">Failed</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -883,6 +925,69 @@ const Admin = () => {
                   <div className="col-span-2">
                     <Label className="text-muted-foreground">{t('admin.createdAt')}</Label>
                     <p className="font-medium">{new Date(selectedUser.created_at).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Order Detail Dialog */}
+        <Dialog open={orderDetailOpen} onOpenChange={setOrderDetailOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>{t('admin.orderDetails')}</DialogTitle>
+            </DialogHeader>
+            {selectedOrder && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">{t('admin.product')}</Label>
+                    <p className="font-medium">{selectedOrder.product_name}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">{t('admin.plan')}</Label>
+                    <p className="font-medium">{selectedOrder.plan_name}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">{t('admin.price')}</Label>
+                    <p className="font-medium">€{selectedOrder.price.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">{t('admin.status')}</Label>
+                    <p>{getStatusBadge(selectedOrder.status)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">{t('admin.customer')}</Label>
+                    <p className="font-medium">{getUserName(selectedOrder.user_id)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">{t('admin.userId')}</Label>
+                    <p className="font-mono text-xs">{selectedOrder.user_id}</p>
+                  </div>
+                  {selectedOrder.pterodactyl_server_id && (
+                    <div>
+                      <Label className="text-muted-foreground">Pterodactyl Server ID</Label>
+                      <p className="font-mono">{selectedOrder.pterodactyl_server_id}</p>
+                    </div>
+                  )}
+                  {selectedOrder.pterodactyl_identifier && (
+                    <div>
+                      <Label className="text-muted-foreground">Server Identifier</Label>
+                      <p className="font-mono">{selectedOrder.pterodactyl_identifier}</p>
+                    </div>
+                  )}
+                  <div className="col-span-2">
+                    <Label className="text-muted-foreground">{t('admin.orderId')}</Label>
+                    <p className="font-mono text-xs">{selectedOrder.id}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">{t('admin.createdAt')}</Label>
+                    <p className="font-medium">{new Date(selectedOrder.created_at).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">{t('admin.updatedAt')}</Label>
+                    <p className="font-medium">{new Date(selectedOrder.updated_at).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
