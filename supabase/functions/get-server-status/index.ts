@@ -23,9 +23,9 @@ serve(async (req) => {
     }
 
     let pterodactylUrl = Deno.env.get('PTERODACTYL_URL');
-    const pterodactylApiKey = Deno.env.get('PTERODACTYL_API_KEY');
+    const pterodactylClientApiKey = Deno.env.get('PTERODACTYL_CLIENT_API_KEY');
 
-    if (!pterodactylUrl || !pterodactylApiKey) {
+    if (!pterodactylUrl || !pterodactylClientApiKey) {
       console.error('Missing Pterodactyl configuration');
       return new Response(
         JSON.stringify({ error: 'Pterodactyl configuration missing' }),
@@ -46,7 +46,7 @@ serve(async (req) => {
       {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${pterodactylApiKey}`,
+          'Authorization': `Bearer ${pterodactylClientApiKey}`,
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         },
