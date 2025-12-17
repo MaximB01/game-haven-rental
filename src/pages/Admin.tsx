@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, ArchiveRestore, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, MessageSquare, Send, HelpCircle, BookOpen, UserCircle } from 'lucide-react';
+import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, ArchiveRestore, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, MessageSquare, Send, HelpCircle, BookOpen, UserCircle, RefreshCw } from 'lucide-react';
 import ProductImageUpload from '@/components/admin/ProductImageUpload';
 import FAQManagement from '@/components/admin/FAQManagement';
 import KnowledgeBaseManagement from '@/components/admin/KnowledgeBaseManagement';
@@ -147,6 +147,7 @@ const Admin = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [ticketTab, setTicketTab] = useState<'active' | 'archived'>('active');
+  const [syncingPterodactyl, setSyncingPterodactyl] = useState(false);
 
   // Product form state
   const [productForm, setProductForm] = useState({
@@ -252,6 +253,44 @@ const Admin = () => {
       .order('created_at', { ascending: false });
     
     if (data) setOrders(data);
+  };
+
+  const handleSyncPterodactyl = async () => {
+    setSyncingPterodactyl(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-pterodactyl-servers');
+      
+      if (error) {
+        toast({
+          title: language === 'nl' ? 'Fout bij synchroniseren' : 'Sync Error',
+          description: error.message,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (data?.success) {
+        toast({
+          title: language === 'nl' ? 'Synchronisatie voltooid' : 'Sync Complete',
+          description: data.message,
+        });
+        await fetchOrders();
+      } else {
+        toast({
+          title: language === 'nl' ? 'Fout' : 'Error',
+          description: data?.error || 'Unknown error',
+          variant: 'destructive',
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: language === 'nl' ? 'Fout' : 'Error',
+        description: err.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncingPterodactyl(false);
+    }
   };
 
   const fetchUserRoles = async () => {
@@ -1042,9 +1081,23 @@ const Admin = () => {
 
           <TabsContent value="orders">
             <Card>
-              <CardHeader>
-                <CardTitle>{t('admin.orderManagement')}</CardTitle>
-                <CardDescription>{t('admin.orderDescriptionActive')}</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>{t('admin.orderManagement')}</CardTitle>
+                  <CardDescription>{t('admin.orderDescriptionActive')}</CardDescription>
+                </div>
+                <Button 
+                  onClick={handleSyncPterodactyl} 
+                  disabled={syncingPterodactyl}
+                  variant="outline"
+                >
+                  {syncingPterodactyl ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  {language === 'nl' ? 'Sync Pterodactyl' : 'Sync Pterodactyl'}
+                </Button>
               </CardHeader>
               <CardContent>
                 <Table>
