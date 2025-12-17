@@ -14,14 +14,40 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+interface DynamicProduct {
+  id: string;
+  name: string;
+  page_path: string | null;
+  display_type: string;
+}
+
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [dynamicProducts, setDynamicProducts] = useState<DynamicProduct[]>([]);
   const { language, setLanguage, t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Fetch products with own_page display type
+  useEffect(() => {
+    const fetchDynamicProducts = async () => {
+      const { data } = await supabase
+        .from('products')
+        .select('id, name, page_path, display_type')
+        .eq('display_type', 'own_page')
+        .eq('is_active', true)
+        .order('name');
+      
+      if (data) {
+        setDynamicProducts(data);
+      }
+    };
+    
+    fetchDynamicProducts();
+  }, []);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -68,12 +94,15 @@ const Navbar = () => {
     localStorage.setItem('theme', newIsDark ? 'dark' : 'light');
   };
 
+  // Build navigation links dynamically
   const navLinks = [
     { href: '/', label: t('nav.home') },
     { href: '/game-servers', label: t('nav.gameServers') },
-    { href: '/vps', label: t('nav.vps') },
-    { href: '/bot-hosting', label: t('nav.botHosting') },
-    { href: '/web-hosting', label: t('nav.webHosting') },
+    // Add dynamic product pages
+    ...dynamicProducts.map(product => ({
+      href: product.page_path || `/product/${product.id}`,
+      label: product.name
+    })),
     { href: '/about', label: t('nav.about') },
     { href: '/contact', label: t('nav.contact') },
   ];
