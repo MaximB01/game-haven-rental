@@ -204,7 +204,7 @@ serve(async (req) => {
     const pterodactylServerIds = new Set(servers.map(s => s.attributes.id));
     const ordersToDelete = (existingOrders || []).filter(o => 
       o.pterodactyl_server_id && 
-      ['active', 'suspended'].includes(o.status) && 
+      ['active', 'suspended', 'archived'].includes(o.status) && 
       !pterodactylServerIds.has(o.pterodactyl_server_id)
     );
 
