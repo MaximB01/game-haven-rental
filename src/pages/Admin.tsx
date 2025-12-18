@@ -586,23 +586,56 @@ const Admin = () => {
   };
 
   const handleUpdateOrderStatus = async (orderId: string, status: string) => {
-    const { error } = await supabase
-      .from('orders')
-      .update({ status })
-      .eq('id', orderId);
+    try {
+      // For suspend/unsuspend, call the Pterodactyl API via edge function
+      if (status === 'suspended' || status === 'active') {
+        const order = orders.find(o => o.id === orderId);
+        
+        // Only call Pterodactyl if the server has a pterodactyl_server_id
+        if (order?.pterodactyl_server_id) {
+          const action = status === 'suspended' ? 'suspend' : 'unsuspend';
+          const { data, error: fnError } = await supabase.functions.invoke('suspend-pterodactyl-server', {
+            body: { orderId, action }
+          });
 
-    if (error) {
+          if (fnError) throw fnError;
+          if (!data?.success) throw new Error(data?.error || `Failed to ${action} server`);
+
+          toast({
+            title: t('admin.success'),
+            description: t('admin.orderUpdated'),
+          });
+          fetchOrders();
+          return;
+        }
+      }
+
+      // Fallback: just update database status (for orders without pterodactyl_server_id or other statuses)
+      const { error } = await supabase
+        .from('orders')
+        .update({ status })
+        .eq('id', orderId);
+
+      if (error) {
+        toast({
+          title: t('admin.error'),
+          description: error.message,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: t('admin.success'),
+          description: t('admin.orderUpdated'),
+        });
+        fetchOrders();
+      }
+    } catch (error: any) {
+      console.error('Error updating order status:', error);
       toast({
         title: t('admin.error'),
-        description: error.message,
+        description: error.message || 'Failed to update order status',
         variant: 'destructive',
       });
-    } else {
-      toast({
-        title: t('admin.success'),
-        description: t('admin.orderUpdated'),
-      });
-      fetchOrders();
     }
   };
 
