@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.get-all-servers-status]
 verify_jwt = false
+
+[functions.pterodactyl-webhook]
+verify_jwt = false
