@@ -3,17 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import Layout from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, RefreshCw, CheckCircle, XCircle, AlertCircle, Activity, Server, Gamepad2, Globe, Bot, HardDrive } from 'lucide-react';
+import { Loader2, RefreshCw, CheckCircle, XCircle, AlertCircle, Activity, Gamepad2, Globe, Bot, HardDrive } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface ServiceStatus {
   name: string;
-  slug: string;
-  category: string;
-  total_servers: number;
-  running: number;
-  offline: number;
-  errors: number;
   status: 'operational' | 'degraded' | 'partial' | 'down' | 'unknown';
 }
 
@@ -105,18 +99,17 @@ const ServerStatusPage = () => {
     }
   };
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'game':
-        return <Gamepad2 className="h-5 w-5" />;
-      case 'vps':
-        return <HardDrive className="h-5 w-5" />;
-      case 'web':
-        return <Globe className="h-5 w-5" />;
-      case 'bot':
-        return <Bot className="h-5 w-5" />;
-      default:
-        return <Server className="h-5 w-5" />;
+  const getServiceIcon = (name: string) => {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('vps')) {
+      return <HardDrive className="h-5 w-5" />;
+    } else if (lowerName.includes('web')) {
+      return <Globe className="h-5 w-5" />;
+    } else if (lowerName.includes('bot')) {
+      return <Bot className="h-5 w-5" />;
+    } else {
+      // Game servers or default
+      return <Gamepad2 className="h-5 w-5" />;
     }
   };
 
@@ -191,17 +184,14 @@ const ServerStatusPage = () => {
             </CardHeader>
             <CardContent>
               <div className="divide-y">
-                {data.services.map((service) => (
-                  <div key={service.slug} className="py-4 flex items-center justify-between">
+                {data.services.map((service, index) => (
+                  <div key={`${service.name}-${index}`} className="py-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="p-2 rounded-lg bg-muted">
-                        {getCategoryIcon(service.category)}
+                        {getServiceIcon(service.name)}
                       </div>
                       <div>
                         <p className="font-medium">{service.name}</p>
-                        <p className="text-sm text-muted-foreground capitalize">
-                          {service.category === 'game' ? t('statusPage.gameServers') : service.category}
-                        </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
