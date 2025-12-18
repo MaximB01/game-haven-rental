@@ -128,10 +128,10 @@ const Dashboard = () => {
     return t(`order.status.${status}`) || status;
   };
 
-  // Active orders (not cancelled, failed, or suspended)
-  const activeOrders = orders.filter(o => !['cancelled', 'failed', 'suspended'].includes(o.status));
-  // Archived orders (cancelled, failed, or suspended)
-  const archivedOrders = orders.filter(o => ['cancelled', 'failed', 'suspended'].includes(o.status));
+  // Active orders (not cancelled, failed, suspended, or deleted)
+  const activeOrders = orders.filter(o => !['cancelled', 'failed', 'suspended', 'deleted'].includes(o.status));
+  // Archived orders (cancelled, failed, suspended, or deleted)
+  const archivedOrders = orders.filter(o => ['cancelled', 'failed', 'suspended', 'deleted'].includes(o.status));
 
   const renderOrdersTable = (ordersList: Order[], emptyMessage: string) => (
     ordersList.length === 0 ? (
