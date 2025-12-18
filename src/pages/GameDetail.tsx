@@ -81,7 +81,7 @@ const GameDetail = () => {
   const [steamWebApiKey, setSteamWebApiKey] = useState('');
   const [serverHostname, setServerHostname] = useState('');
   const [maxPlayers, setMaxPlayers] = useState<number>(32);
-  const [fivemVersion, setFivemVersion] = useState('latest');
+  const [fivemVersion, setFivemVersion] = useState('recommended');
   const [txAdminPort, setTxAdminPort] = useState<number>(40120);
 
   useEffect(() => {
@@ -89,7 +89,7 @@ const GameDetail = () => {
     if (gameId === 'fivem') {
       setServerHostname((prev) => prev || 'FiveM Server');
       setMaxPlayers((prev) => (Number.isFinite(prev) ? prev : 32));
-      setFivemVersion((prev) => prev || 'latest');
+      setFivemVersion((prev) => prev || 'recommended');
       setTxAdminPort((prev) => (Number.isFinite(prev) ? prev : 40120));
     }
   }, [gameId]);
@@ -206,7 +206,7 @@ const GameDetail = () => {
           STEAM_WEBAPIKEY: steamKey,
           MAX_PLAYERS: String(Math.max(1, Math.min(2048, maxPlayers || 32))),
           SERVER_HOSTNAME: hostname,
-          FIVEM_VERSION: (fivemVersion || 'latest').trim(),
+          FIVEM_VERSION: (fivemVersion || 'recommended').trim(),
           TXADMIN_PORT: String(Math.max(1, Math.min(65535, txAdminPort || 40120))),
           TXADMIN_ENABLE: txAdminEnable,
         };
@@ -462,7 +462,7 @@ const GameDetail = () => {
                   id="fivem-version"
                   value={fivemVersion}
                   onChange={(e) => setFivemVersion(e.target.value)}
-                  placeholder="latest"
+                  placeholder="recommended"
                   disabled={isUnavailable}
                 />
               </div>
