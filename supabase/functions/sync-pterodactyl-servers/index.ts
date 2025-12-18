@@ -204,7 +204,7 @@ serve(async (req) => {
     const pterodactylServerIds = new Set(servers.map(s => s.attributes.id));
     const ordersToArchive = (existingOrders || []).filter(o => 
       o.pterodactyl_server_id && 
-      o.status === 'active' && 
+      ['active', 'suspended'].includes(o.status) && 
       !pterodactylServerIds.has(o.pterodactyl_server_id)
     );
 
@@ -212,13 +212,17 @@ serve(async (req) => {
     for (const order of ordersToArchive) {
       const { error: archiveError } = await supabase
         .from('orders')
-        .update({ status: 'suspended' })
+        .update({ 
+          status: 'archived',
+          pterodactyl_server_id: null,
+          pterodactyl_identifier: null
+        })
         .eq('id', order.id);
 
       if (archiveError) {
-        console.error(`Failed to suspend order ${order.display_id}:`, archiveError.message);
+        console.error(`Failed to archive order ${order.display_id}:`, archiveError.message);
       } else {
-        console.log(`Suspended order ${order.display_id} - server no longer exists in Pterodactyl`);
+        console.log(`Archived order ${order.display_id} - server no longer exists in Pterodactyl`);
         archivedCount++;
       }
     }
