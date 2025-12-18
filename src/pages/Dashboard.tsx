@@ -18,6 +18,7 @@ interface Order {
   plan_name: string;
   price: number;
   status: string;
+  display_id: string;
   created_at: string;
 }
 
@@ -143,6 +144,7 @@ const Dashboard = () => {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border">
+              <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.serverId')}</th>
               <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.product')}</th>
               <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.plan')}</th>
               <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">{t('dashboard.price')}</th>
@@ -160,6 +162,9 @@ const Dashboard = () => {
                   fetchOrderDetails(order.id);
                 }}
               >
+                <td className="py-3 px-4">
+                  <span className="font-mono text-sm text-primary">{order.display_id}</span>
+                </td>
                 <td className="py-3 px-4">
                   <div className="font-medium text-foreground">{order.product_name}</div>
                   <div className="text-sm text-muted-foreground">{order.product_type}</div>
