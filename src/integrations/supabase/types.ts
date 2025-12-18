@@ -474,6 +474,7 @@ export type Database = {
       user_orders: {
         Row: {
           created_at: string | null
+          display_id: string | null
           id: string | null
           plan_name: string | null
           price: number | null
@@ -487,6 +488,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          display_id?: string | null
           id?: string | null
           plan_name?: string | null
           price?: number | null
@@ -500,6 +502,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          display_id?: string | null
           id?: string | null
           plan_name?: string | null
           price?: number | null
