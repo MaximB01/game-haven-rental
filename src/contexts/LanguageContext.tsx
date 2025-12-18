@@ -163,6 +163,7 @@ const translations: Translations = {
   'dashboard.manageServer': { nl: 'Beheer Server', en: 'Manage Server' },
   'dashboard.serverPanel': { nl: 'Server Paneel', en: 'Server Panel' },
   'dashboard.viewDetails': { nl: 'Details', en: 'Details' },
+  'dashboard.serverId': { nl: 'Server ID', en: 'Server ID' },
   'dashboard.openServerPanel': { nl: 'Open Server Paneel', en: 'Open Server Panel' },
   'dashboard.cancelServer': { nl: 'Server Opzeggen', en: 'Cancel Server' },
   'dashboard.cancelConfirmTitle': { nl: 'Weet je het zeker?', en: 'Are you sure?' },
