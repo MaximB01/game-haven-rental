@@ -295,6 +295,9 @@ const translations: Translations = {
   'admin.city': { nl: 'Stad', en: 'City' },
   'admin.postalCode': { nl: 'Postcode', en: 'Postal Code' },
   'admin.country': { nl: 'Land', en: 'Country' },
+  'admin.userServers': { nl: 'Servers', en: 'Servers' },
+  'admin.noServersFound': { nl: 'Geen servers gevonden', en: 'No servers found' },
+  'admin.serverHistory': { nl: 'Server Geschiedenis', en: 'Server History' },
   
   // Admin - Order Details
   'admin.customer': { nl: 'Klant', en: 'Customer' },

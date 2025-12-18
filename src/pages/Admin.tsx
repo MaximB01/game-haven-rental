@@ -1695,12 +1695,12 @@ const Admin = () => {
 
         {/* User Detail Dialog */}
         <Dialog open={userDetailOpen} onOpenChange={setUserDetailOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t('admin.userDetails')}</DialogTitle>
             </DialogHeader>
             {selectedUser && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">{t('admin.name')}</Label>
@@ -1742,6 +1742,65 @@ const Admin = () => {
                     <Label className="text-muted-foreground">{t('admin.createdAt')}</Label>
                     <p className="font-medium">{new Date(selectedUser.created_at).toLocaleString()}</p>
                   </div>
+                </div>
+
+                {/* User Servers Section */}
+                <div className="border-t pt-4">
+                  <Label className="text-muted-foreground mb-3 block">{t('admin.userServers')}</Label>
+                  {(() => {
+                    const userOrders = orders.filter(order => order.user_id === selectedUser.user_id);
+                    if (userOrders.length === 0) {
+                      return (
+                        <p className="text-muted-foreground text-sm">{t('admin.noServersFound')}</p>
+                      );
+                    }
+                    return (
+                      <div className="space-y-2">
+                        {userOrders.map((order) => (
+                          <div 
+                            key={order.id} 
+                            className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{order.product_name}</span>
+                                {order.variant_name && (
+                                  <span className="text-muted-foreground text-sm">({order.variant_name})</span>
+                                )}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {order.plan_name} • €{order.price}/mo
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {new Date(order.created_at).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={
+                                order.status === 'active' ? 'default' :
+                                order.status === 'pending' ? 'secondary' :
+                                order.status === 'provisioning' ? 'secondary' :
+                                order.status === 'suspended' ? 'outline' :
+                                'destructive'
+                              }>
+                                {t(`order.status.${order.status}`)}
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedOrder(order);
+                                  setOrderDetailOpen(true);
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}
