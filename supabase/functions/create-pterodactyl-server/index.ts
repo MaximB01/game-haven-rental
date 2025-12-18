@@ -75,6 +75,8 @@ interface OrderRequest {
   dockerImage?: string;
   startupCommand?: string;
   minecraftVersion?: string;
+  /** Optional egg environment overrides (e.g. FiveM license keys, max players) */
+  environment?: Record<string, string>;
 }
 
 // Input validation helpers
@@ -174,7 +176,38 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body: OrderRequest = await req.json();
-    const { orderId, gameId, planName, ram, cpu, disk, userId, userEmail, variantId, eggId, nestId, dockerImage, startupCommand, minecraftVersion } = body;
+    const { orderId, gameId, planName, ram, cpu, disk, userId, userEmail, variantId, eggId, nestId, dockerImage, startupCommand, minecraftVersion, environment } = body;
+
+    // Validate & sanitize optional environment overrides (do not log values)
+    let sanitizedEnvironment: Record<string, string> | undefined;
+    if (environment !== undefined) {
+      if (typeof environment !== 'object' || environment === null || Array.isArray(environment)) {
+        console.error('Invalid environment payload type');
+        return new Response(
+          JSON.stringify({ success: false, error: 'Invalid request parameters' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const sanitized: Record<string, string> = {};
+      for (const [keyRaw, valueRaw] of Object.entries(environment)) {
+        const key = String(keyRaw).toUpperCase().replace(/[^A-Z0-9_]/g, '').slice(0, 64);
+        if (!key) continue;
+
+        const value = typeof valueRaw === 'string' ? valueRaw.trim() : String(valueRaw ?? '').trim();
+        // keep values bounded (and prevent huge payloads)
+        if (value.length > 500) {
+          console.error('Environment value too long for key:', key);
+          return new Response(
+            JSON.stringify({ success: false, error: 'Invalid request parameters' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        sanitized[key] = value;
+      }
+      sanitizedEnvironment = sanitized;
+    }
 
     // Input validation
     if (!orderId || !isValidUUID(orderId)) {
@@ -359,13 +392,14 @@ serve(async (req) => {
     const finalEggId = eggId || gameEgg?.eggId || 1;
     const finalDockerImage = dockerImage || gameEgg?.dockerImage || 'ghcr.io/pterodactyl/yolks:java_17';
     const finalStartup = startupCommand || gameEgg?.startup || 'java -Xms128M -Xmx{{SERVER_MEMORY}}M -jar {{SERVER_JARFILE}}';
-    const baseEnvironment = gameEgg?.environment || {
-      SERVER_JARFILE: 'server.jar',
-      VANILLA_VERSION: 'latest',
-      BUILD_NUMBER: 'latest'
-    };
 
-    const finalEnvironment: Record<string, string> = { ...baseEnvironment };
+    // IMPORTANT: If we don't have a known game mapping (like FiveM), do NOT fall back to Minecraft env.
+    const baseEnvironment = gameEgg?.environment ?? {};
+
+    const finalEnvironment: Record<string, string> = {
+      ...baseEnvironment,
+      ...(sanitizedEnvironment ?? {}),
+    };
 
     if (minecraftVersion && gameId.toLowerCase() === 'minecraft') {
       finalEnvironment.VANILLA_VERSION = minecraftVersion;
@@ -396,7 +430,8 @@ serve(async (req) => {
       },
     };
 
-    console.log('Creating server with payload:', JSON.stringify(createServerPayload, null, 2));
+    const envKeys = Object.keys(finalEnvironment);
+    console.log(`Creating server in panel: name=${serverName} egg=${finalEggId} allocation=${allocationId} envKeys=${envKeys.join(',')}`);
 
     const createServerResponse = await fetch(`${pterodactylUrl}/api/application/servers`, {
       method: 'POST',
@@ -411,17 +446,33 @@ serve(async (req) => {
     const createServerData = await createServerResponse.json();
 
     if (!createServerResponse.ok) {
-      console.error('Failed to create server in panel. Status:', createServerResponse.status);
-      console.error('Pterodactyl error response:', JSON.stringify(createServerData, null, 2));
-      
-      // Extract specific error message if available
-      const errorMessage = createServerData.errors?.[0]?.detail || 
-                          createServerData.error || 
-                          'Failed to create server. Please try again.';
-      
+      const status = createServerResponse.status;
+      const errors = Array.isArray(createServerData?.errors) ? createServerData.errors : [];
+
+      // Collect missing fields like environment.FIVEM_LICENSE
+      const missingFields = [...new Set(
+        errors
+          .map((e: any) => e?.meta?.source_field)
+          .filter((v: any) => typeof v === 'string' && v.length > 0)
+      )];
+
+      console.error('Failed to create server in panel. Status:', status);
+      console.error('Pterodactyl error codes:', errors.map((e: any) => e?.code).filter(Boolean));
+      console.error('Pterodactyl missing fields:', missingFields);
+
+      const errorMessage =
+        createServerData?.errors?.[0]?.detail ||
+        createServerData?.error ||
+        'Failed to create server. Please try again.';
+
+      // Return 200 so the web app can show the validation message cleanly
       return new Response(
-        JSON.stringify({ success: false, error: errorMessage, details: createServerData }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: false,
+          error: errorMessage,
+          missingFields,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

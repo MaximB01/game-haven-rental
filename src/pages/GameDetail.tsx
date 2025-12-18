@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, HardDrive, Users, Cpu, Loader2, Server } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -74,9 +75,22 @@ const GameDetail = () => {
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
   const [minecraftVersion, setMinecraftVersion] = useState<string>('latest');
+
+  // FiveM required settings (egg variables)
+  const [fivemLicense, setFivemLicense] = useState('');
+  const [steamWebApiKey, setSteamWebApiKey] = useState('');
+  const [serverHostname, setServerHostname] = useState('');
+  const [maxPlayers, setMaxPlayers] = useState<number>(32);
+  const [fivemVersion, setFivemVersion] = useState('latest');
+  const [txAdminPort, setTxAdminPort] = useState<number>(40120);
+
   useEffect(() => {
-    if (gameId) {
-      fetchProductData(gameId);
+    // sensible defaults when switching products
+    if (gameId === 'fivem') {
+      setServerHostname((prev) => prev || 'FiveM Server');
+      setMaxPlayers((prev) => (Number.isFinite(prev) ? prev : 32));
+      setFivemVersion((prev) => prev || 'latest');
+      setTxAdminPort((prev) => (Number.isFinite(prev) ? prev : 40120));
     }
   }, [gameId]);
 
@@ -126,6 +140,13 @@ const GameDetail = () => {
     setLoading(false);
   };
 
+  // Load product data when route changes
+  useEffect(() => {
+    if (gameId) {
+      fetchProductData(gameId);
+    }
+  }, [gameId]);
+
   const getProductImage = () => {
     if (product?.image_url) return product.image_url;
     return defaultImages[gameId || ''] || minecraftImg;
@@ -159,6 +180,37 @@ const GameDetail = () => {
 
       // Get selected variant details
       const selectedVariantData = variants.find(v => v.id === selectedVariant);
+
+      // FiveM requires egg variables
+      let environment: Record<string, string> | undefined;
+      if (gameId === 'fivem') {
+        const license = fivemLicense.trim();
+        const steamKey = steamWebApiKey.trim();
+        const hostname = (serverHostname || `${product.name} Server`).trim();
+
+        if (!license || !steamKey) {
+          toast({
+            title: language === 'nl' ? 'Extra info vereist' : 'Extra info required',
+            description: language === 'nl'
+              ? 'Vul je FiveM License Key en Steam Web API Key in om de server aan te maken.'
+              : 'Please provide your FiveM License Key and Steam Web API Key to create the server.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const txAdminEnable = selectedVariantData?.name?.toLowerCase().includes('disabled') ? '0' : '1';
+
+        environment = {
+          FIVEM_LICENSE: license,
+          STEAM_WEBAPIKEY: steamKey,
+          MAX_PLAYERS: String(Math.max(1, Math.min(2048, maxPlayers || 32))),
+          SERVER_HOSTNAME: hostname,
+          FIVEM_VERSION: (fivemVersion || 'latest').trim(),
+          TXADMIN_PORT: String(Math.max(1, Math.min(65535, txAdminPort || 40120))),
+          TXADMIN_ENABLE: txAdminEnable,
+        };
+      }
 
       // Create order in database
       const { data: order, error: orderError } = await supabase
@@ -201,6 +253,7 @@ const GameDetail = () => {
             dockerImage: selectedVariantData?.docker_image,
             startupCommand: selectedVariantData?.startup_command,
             minecraftVersion: gameId === 'minecraft' ? minecraftVersion : undefined,
+            environment,
           },
         }
       );
@@ -211,7 +264,7 @@ const GameDetail = () => {
           .from('orders')
           .update({ status: 'failed' })
           .eq('id', order.id);
-        throw new Error('Failed to create server');
+        throw new Error(serverError.message || 'Failed to create server');
       }
 
       if (serverData?.success) {
@@ -223,15 +276,22 @@ const GameDetail = () => {
         });
         navigate('/dashboard');
       } else {
+        await supabase
+          .from('orders')
+          .update({ status: 'failed' })
+          .eq('id', order.id);
         throw new Error(serverData?.error || 'Unknown error');
       }
     } catch (error) {
+      const msg = error instanceof Error ? error.message : undefined;
       console.error('Order error:', error);
       toast({
         title: language === 'nl' ? 'Bestelling mislukt' : 'Order failed',
-        description: language === 'nl'
-          ? 'Er ging iets mis bij het aanmaken van je server. Probeer het opnieuw.'
-          : 'Something went wrong creating your server. Please try again.',
+        description: msg
+          ? msg
+          : (language === 'nl'
+            ? 'Er ging iets mis bij het aanmaken van je server. Probeer het opnieuw.'
+            : 'Something went wrong creating your server. Please try again.'),
         variant: 'destructive',
       });
     } finally {
@@ -359,6 +419,95 @@ const GameDetail = () => {
                   : 'At the moment there is only one server type available for this product.'}
               </p>
             )}
+          </div>
+        </section>
+      )}
+
+      {/* FiveM Settings */}
+      {gameId === 'fivem' && (
+        <section className="py-8 border-b border-border">
+          <div className="container mx-auto px-4">
+            <h2 className="text-xl font-bold text-foreground mb-4">
+              {language === 'nl' ? 'Server instellingen' : 'Server settings'}
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
+              <div className="space-y-2">
+                <Label htmlFor="fivem-hostname">{language === 'nl' ? 'Server naam' : 'Server name'}</Label>
+                <Input
+                  id="fivem-hostname"
+                  value={serverHostname}
+                  onChange={(e) => setServerHostname(e.target.value)}
+                  placeholder={language === 'nl' ? 'Mijn FiveM server' : 'My FiveM server'}
+                  disabled={isUnavailable}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="fivem-maxplayers">{language === 'nl' ? 'Max spelers' : 'Max players'}</Label>
+                <Input
+                  id="fivem-maxplayers"
+                  type="number"
+                  min={1}
+                  max={2048}
+                  value={maxPlayers}
+                  onChange={(e) => setMaxPlayers(parseInt(e.target.value || '0', 10) || 0)}
+                  disabled={isUnavailable}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="fivem-version">{language === 'nl' ? 'FiveM versie' : 'FiveM version'}</Label>
+                <Input
+                  id="fivem-version"
+                  value={fivemVersion}
+                  onChange={(e) => setFivemVersion(e.target.value)}
+                  placeholder="latest"
+                  disabled={isUnavailable}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="txadmin-port">{language === 'nl' ? 'TxAdmin poort' : 'TxAdmin port'}</Label>
+                <Input
+                  id="txadmin-port"
+                  type="number"
+                  min={1}
+                  max={65535}
+                  value={txAdminPort}
+                  onChange={(e) => setTxAdminPort(parseInt(e.target.value || '0', 10) || 0)}
+                  disabled={isUnavailable}
+                />
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="fivem-license">{language === 'nl' ? 'FiveM License Key' : 'FiveM License Key'}</Label>
+                <Input
+                  id="fivem-license"
+                  value={fivemLicense}
+                  onChange={(e) => setFivemLicense(e.target.value)}
+                  placeholder="cfxk_..."
+                  disabled={isUnavailable}
+                />
+              </div>
+
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="steam-webapikey">{language === 'nl' ? 'Steam Web API Key' : 'Steam Web API Key'}</Label>
+                <Input
+                  id="steam-webapikey"
+                  value={steamWebApiKey}
+                  onChange={(e) => setSteamWebApiKey(e.target.value)}
+                  placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  disabled={isUnavailable}
+                />
+              </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground mt-3 max-w-3xl">
+              {language === 'nl'
+                ? 'Deze gegevens zijn vereist door de FiveM egg om je server aan te maken.'
+                : 'These settings are required by the FiveM egg to create your server.'}
+            </p>
           </div>
         </section>
       )}
