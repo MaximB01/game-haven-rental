@@ -92,26 +92,30 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Archive the order
+    // Mark the order as deleted and clear Pterodactyl linkage
     const { error: updateError } = await supabase
       .from('orders')
-      .update({ status: 'archived' })
+      .update({ 
+        status: 'deleted',
+        pterodactyl_server_id: null,
+        pterodactyl_identifier: null
+      })
       .eq('id', order.id)
 
     if (updateError) {
-      console.error('Error archiving order:', updateError)
+      console.error('Error marking order deleted:', updateError)
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to archive order' }),
+        JSON.stringify({ success: false, error: 'Failed to mark order deleted' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log(`Archived order ${order.display_id} (${order.id}) for deleted server ${serverName}`)
+    console.log(`Marked order ${order.display_id} (${order.id}) as deleted for deleted server ${serverName}`)
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Order ${order.display_id} archived`,
+        message: `Order ${order.display_id} deleted`,
         order_id: order.id
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
