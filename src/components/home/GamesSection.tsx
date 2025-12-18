@@ -42,12 +42,13 @@ const GamesSection = () => {
   }, []);
 
   const fetchPopularProducts = async () => {
-    // Fetch only popular products
+    // Fetch only popular products that are not temporarily unavailable
     const { data: productsData } = await supabase
       .from('products')
       .select('id, name, slug, image_url, is_popular')
       .eq('is_active', true)
       .eq('is_popular', true)
+      .eq('temporarily_unavailable', false)
       .eq('display_type', 'grouped')
       .order('name')
       .limit(6);
