@@ -105,7 +105,7 @@ const ServerDetailModal = ({ order, open, onOpenChange, onOrderUpdated }: Server
     }
   };
 
-  const isGameServer = order.product_type === 'game_server' || order.product_type === 'Game Server';
+  const isGameServer = order.product_type === 'game_server' || order.product_type === 'Game Server' || order.product_type === 'game';
   const isActive = order.status === 'active';
   const canSuspend = order.status === 'active';
 
