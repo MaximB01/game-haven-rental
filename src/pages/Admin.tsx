@@ -1171,14 +1171,14 @@ const Admin = () => {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {order.pterodactyl_identifier && (
+                            {order.pterodactyl_server_id && (
                               <Button
                                 variant="outline"
                                 size="sm"
                                 asChild
                               >
                                 <a 
-                                  href={`https://panel.smpmetdeboys.be/server/${order.pterodactyl_identifier}`}
+                                  href={`https://panel.smpmetdeboys.be/admin/servers/view/${order.pterodactyl_server_id}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                 >
