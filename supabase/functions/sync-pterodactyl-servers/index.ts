@@ -200,30 +200,30 @@ serve(async (req) => {
         .filter(Boolean)
     );
 
-    // Step 5b: Detect deleted servers and archive their orders
+    // Step 5b: Detect deleted servers and mark their orders as deleted
     const pterodactylServerIds = new Set(servers.map(s => s.attributes.id));
-    const ordersToArchive = (existingOrders || []).filter(o => 
+    const ordersToDelete = (existingOrders || []).filter(o => 
       o.pterodactyl_server_id && 
       ['active', 'suspended'].includes(o.status) && 
       !pterodactylServerIds.has(o.pterodactyl_server_id)
     );
 
-    let archivedCount = 0;
-    for (const order of ordersToArchive) {
-      const { error: archiveError } = await supabase
+    let deletedCount = 0;
+    for (const order of ordersToDelete) {
+      const { error: deleteError } = await supabase
         .from('orders')
         .update({ 
-          status: 'archived',
+          status: 'deleted',
           pterodactyl_server_id: null,
           pterodactyl_identifier: null
         })
         .eq('id', order.id);
 
-      if (archiveError) {
-        console.error(`Failed to archive order ${order.display_id}:`, archiveError.message);
+      if (deleteError) {
+        console.error(`Failed to mark order ${order.display_id} as deleted:`, deleteError.message);
       } else {
-        console.log(`Archived order ${order.display_id} - server no longer exists in Pterodactyl`);
-        archivedCount++;
+        console.log(`Marked order ${order.display_id} as deleted - server no longer exists in Pterodactyl`);
+        deletedCount++;
       }
     }
 
@@ -284,7 +284,7 @@ serve(async (req) => {
     const results = {
       imported: 0,
       skipped: 0,
-      archived: archivedCount,
+      deleted: deletedCount,
       noUser: 0,
       noProduct: 0,
       noPlan: 0,
@@ -388,7 +388,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         results,
-        message: `Imported ${results.imported} servers, skipped ${results.skipped} existing, archived ${results.archived} deleted, ${results.noUser} without user, ${results.noProduct} without product match, ${results.noPlan} without plan`,
+        message: `Imported ${results.imported} servers, skipped ${results.skipped} existing, deleted ${results.deleted}, ${results.noUser} without user, ${results.noProduct} without product match, ${results.noPlan} without plan`,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
