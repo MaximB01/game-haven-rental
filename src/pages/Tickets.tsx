@@ -339,10 +339,10 @@ const Tickets = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline' | 'warning' | 'info'> = {
       open: 'default',
-      in_progress: 'secondary',
-      awaiting_reply: 'outline',
+      in_progress: 'warning',
+      awaiting_reply: 'info',
       closed: 'destructive',
     };
     const labels: Record<string, string> = {
