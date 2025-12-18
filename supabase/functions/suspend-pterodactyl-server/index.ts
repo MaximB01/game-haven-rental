@@ -162,7 +162,17 @@ serve(async (req) => {
     );
 
     if (!suspendResponse.ok) {
-      console.error(`Failed to ${action} server`);
+      const responseText = await suspendResponse.text();
+      console.error(`Failed to ${action} server. Status: ${suspendResponse.status}, Response: ${responseText}`);
+      
+      // Check if server doesn't exist (404)
+      if (suspendResponse.status === 404) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Server does not exist in Pterodactyl. It may have been deleted.' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ success: false, error: `Failed to ${action} server. Please try again.` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
