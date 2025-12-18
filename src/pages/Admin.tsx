@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, ArchiveRestore, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, MessageSquare, Send, HelpCircle, BookOpen, UserCircle, RefreshCw } from 'lucide-react';
+import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, ArchiveRestore, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, MessageSquare, Send, HelpCircle, BookOpen, UserCircle, RefreshCw, ExternalLink } from 'lucide-react';
 import ProductImageUpload from '@/components/admin/ProductImageUpload';
 import FAQManagement from '@/components/admin/FAQManagement';
 import KnowledgeBaseManagement from '@/components/admin/KnowledgeBaseManagement';
@@ -1171,6 +1171,21 @@ const Admin = () => {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
+                            {order.pterodactyl_identifier && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
+                              >
+                                <a 
+                                  href={`https://panel.smpmetdeboys.be/server/${order.pterodactyl_identifier}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              </Button>
+                            )}
                             <Select
                               value={order.status}
                               onValueChange={(value) => handleUpdateOrderStatus(order.id, value)}
