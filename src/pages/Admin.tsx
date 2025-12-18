@@ -1146,7 +1146,7 @@ const Admin = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredOrders.filter(o => !['cancelled', 'failed', 'suspended'].includes(o.status)).map((order) => (
+                    {filteredOrders.filter(o => !['cancelled', 'failed', 'suspended', 'archived'].includes(o.status)).map((order) => (
                       <TableRow key={order.id}>
                         <TableCell><span className="font-mono text-sm text-primary">{order.display_id}</span></TableCell>
                         <TableCell>{order.product_name}</TableCell>
@@ -1401,14 +1401,14 @@ const Admin = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredOrders.filter(o => ['cancelled', 'failed', 'suspended'].includes(o.status)).length === 0 ? (
+                    {filteredOrders.filter(o => ['cancelled', 'failed', 'suspended', 'archived'].includes(o.status)).length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                           {t('admin.noArchivedOrders')}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filteredOrders.filter(o => ['cancelled', 'failed', 'suspended'].includes(o.status)).map((order) => (
+                      filteredOrders.filter(o => ['cancelled', 'failed', 'suspended', 'archived'].includes(o.status)).map((order) => (
                         <TableRow key={order.id}>
                           <TableCell><span className="font-mono text-sm text-primary">{order.display_id}</span></TableCell>
                           <TableCell>{order.product_name}</TableCell>
