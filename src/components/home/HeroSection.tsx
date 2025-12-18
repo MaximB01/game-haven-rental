@@ -29,7 +29,7 @@ const HeroSection = () => {
         <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6">
             {t('hero.title')}
-            <span className="block text-gradient mt-2">CloudServe</span>
+            <span className="block text-gradient mt-2">CloudSurf</span>
           </h1>
           
           <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">

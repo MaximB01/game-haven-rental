@@ -291,7 +291,7 @@ serve(async (req) => {
           email: sanitizedEmail,
           username: username,
           first_name: sanitizedEmail.split('@')[0].slice(0, 50),
-          last_name: 'CloudServe',
+          last_name: 'CloudSurf',
         }),
       });
 
