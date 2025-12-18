@@ -212,13 +212,13 @@ serve(async (req) => {
     for (const order of ordersToArchive) {
       const { error: archiveError } = await supabase
         .from('orders')
-        .update({ status: 'archived' })
+        .update({ status: 'suspended' })
         .eq('id', order.id);
 
       if (archiveError) {
-        console.error(`Failed to archive order ${order.display_id}:`, archiveError.message);
+        console.error(`Failed to suspend order ${order.display_id}:`, archiveError.message);
       } else {
-        console.log(`Archived order ${order.display_id} - server no longer exists in Pterodactyl`);
+        console.log(`Suspended order ${order.display_id} - server no longer exists in Pterodactyl`);
         archivedCount++;
       }
     }
