@@ -396,6 +396,8 @@ serve(async (req) => {
       },
     };
 
+    console.log('Creating server with payload:', JSON.stringify(createServerPayload, null, 2));
+
     const createServerResponse = await fetch(`${pterodactylUrl}/api/application/servers`, {
       method: 'POST',
       headers: {
@@ -409,9 +411,16 @@ serve(async (req) => {
     const createServerData = await createServerResponse.json();
 
     if (!createServerResponse.ok) {
-      console.error('Failed to create server in panel');
+      console.error('Failed to create server in panel. Status:', createServerResponse.status);
+      console.error('Pterodactyl error response:', JSON.stringify(createServerData, null, 2));
+      
+      // Extract specific error message if available
+      const errorMessage = createServerData.errors?.[0]?.detail || 
+                          createServerData.error || 
+                          'Failed to create server. Please try again.';
+      
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to create server. Please try again.' }),
+        JSON.stringify({ success: false, error: errorMessage, details: createServerData }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
