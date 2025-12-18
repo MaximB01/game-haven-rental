@@ -1103,6 +1103,7 @@ const Admin = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>{t('dashboard.serverId')}</TableHead>
                       <TableHead>{t('admin.product')}</TableHead>
                       <TableHead>{t('admin.plan')}</TableHead>
                       <TableHead>{t('admin.price')}</TableHead>
@@ -1114,6 +1115,7 @@ const Admin = () => {
                   <TableBody>
                     {filteredOrders.filter(o => !['cancelled', 'failed', 'suspended'].includes(o.status)).map((order) => (
                       <TableRow key={order.id}>
+                        <TableCell><span className="font-mono text-sm text-primary">{order.display_id}</span></TableCell>
                         <TableCell>{order.product_name}</TableCell>
                         <TableCell>{order.plan_name}</TableCell>
                         <TableCell>€{order.price.toFixed(2)}</TableCell>
@@ -1356,6 +1358,7 @@ const Admin = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>{t('dashboard.serverId')}</TableHead>
                       <TableHead>{t('admin.product')}</TableHead>
                       <TableHead>{t('admin.plan')}</TableHead>
                       <TableHead>{t('admin.price')}</TableHead>
@@ -1367,13 +1370,14 @@ const Admin = () => {
                   <TableBody>
                     {filteredOrders.filter(o => ['cancelled', 'failed', 'suspended'].includes(o.status)).length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                           {t('admin.noArchivedOrders')}
                         </TableCell>
                       </TableRow>
                     ) : (
                       filteredOrders.filter(o => ['cancelled', 'failed', 'suspended'].includes(o.status)).map((order) => (
                         <TableRow key={order.id}>
+                          <TableCell><span className="font-mono text-sm text-primary">{order.display_id}</span></TableCell>
                           <TableCell>{order.product_name}</TableCell>
                           <TableCell>{order.plan_name}</TableCell>
                           <TableCell>€{order.price.toFixed(2)}</TableCell>
@@ -1763,6 +1767,7 @@ const Admin = () => {
                           >
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
+                                <span className="font-mono text-sm text-primary">{order.display_id}</span>
                                 <span className="font-medium">{order.product_name}</span>
                                 {order.variant_name && (
                                   <span className="text-muted-foreground text-sm">({order.variant_name})</span>
@@ -1815,6 +1820,11 @@ const Admin = () => {
             </DialogHeader>
             {selectedOrder && (
               <div className="space-y-4">
+                {/* Display ID prominently at top */}
+                <div className="bg-muted/50 p-3 rounded-lg">
+                  <Label className="text-muted-foreground text-xs">{t('dashboard.serverId')}</Label>
+                  <p className="font-mono text-lg text-primary font-bold">{selectedOrder.display_id}</p>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">{t('admin.product')}</Label>

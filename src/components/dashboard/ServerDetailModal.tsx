@@ -34,6 +34,7 @@ interface Order {
   plan_name: string;
   price: number;
   status: string;
+  display_id?: string;
   created_at: string;
   pterodactyl_server_id?: number;
   pterodactyl_identifier?: string;
@@ -116,8 +117,11 @@ const ServerDetailModal = ({ order, open, onOpenChange, onOrderUpdated }: Server
             <Server className="h-5 w-5 text-primary" />
             {order.product_name}
           </DialogTitle>
-          <DialogDescription>
-            {order.plan_name}
+          <DialogDescription className="flex items-center gap-2">
+            <span>{order.plan_name}</span>
+            {order.display_id && (
+              <span className="font-mono text-primary font-medium">• {order.display_id}</span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -134,6 +138,14 @@ const ServerDetailModal = ({ order, open, onOpenChange, onOrderUpdated }: Server
           </TabsList>
           
           <TabsContent value="info" className="space-y-4 pt-4">
+            {/* Server ID - Prominent display for support */}
+            {order.display_id && (
+              <div className="bg-muted/50 p-3 rounded-lg">
+                <span className="text-xs text-muted-foreground">{t('dashboard.serverId')}</span>
+                <p className="font-mono text-lg text-primary font-bold">{order.display_id}</p>
+              </div>
+            )}
+
             {/* Server Info */}
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center gap-2 text-sm">
