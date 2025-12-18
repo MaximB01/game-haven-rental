@@ -192,13 +192,36 @@ serve(async (req) => {
     // Step 5: Fetch existing orders with pterodactyl_server_id
     const { data: existingOrders } = await supabase
       .from('orders')
-      .select('pterodactyl_server_id');
+      .select('id, pterodactyl_server_id, pterodactyl_identifier, status, display_id');
 
     const existingServerIds = new Set(
       (existingOrders || [])
         .map(o => o.pterodactyl_server_id)
         .filter(Boolean)
     );
+
+    // Step 5b: Detect deleted servers and archive their orders
+    const pterodactylServerIds = new Set(servers.map(s => s.attributes.id));
+    const ordersToArchive = (existingOrders || []).filter(o => 
+      o.pterodactyl_server_id && 
+      o.status === 'active' && 
+      !pterodactylServerIds.has(o.pterodactyl_server_id)
+    );
+
+    let archivedCount = 0;
+    for (const order of ordersToArchive) {
+      const { error: archiveError } = await supabase
+        .from('orders')
+        .update({ status: 'archived' })
+        .eq('id', order.id);
+
+      if (archiveError) {
+        console.error(`Failed to archive order ${order.display_id}:`, archiveError.message);
+      } else {
+        console.log(`Archived order ${order.display_id} - server no longer exists in Pterodactyl`);
+        archivedCount++;
+      }
+    }
 
     // Step 6: Fetch Supabase users by email
     const { data: profiles } = await supabase
@@ -257,6 +280,7 @@ serve(async (req) => {
     const results = {
       imported: 0,
       skipped: 0,
+      archived: archivedCount,
       noUser: 0,
       noProduct: 0,
       noPlan: 0,
@@ -360,7 +384,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         results,
-        message: `Imported ${results.imported} servers, skipped ${results.skipped} existing, ${results.noUser} without user, ${results.noProduct} without product match, ${results.noPlan} without plan`,
+        message: `Imported ${results.imported} servers, skipped ${results.skipped} existing, archived ${results.archived} deleted, ${results.noUser} without user, ${results.noProduct} without product match, ${results.noPlan} without plan`,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
