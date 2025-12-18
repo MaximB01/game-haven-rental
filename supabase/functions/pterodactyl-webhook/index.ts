@@ -31,6 +31,52 @@ interface PterodactylWebhookPayload {
   }
 }
 
+// Helper function to convert ArrayBuffer to hex string
+function arrayBufferToHex(buffer: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+// Verify webhook signature using HMAC-SHA256
+async function verifyWebhookSignature(body: string, signature: string | null, secret: string): Promise<boolean> {
+  if (!signature) {
+    console.error('No signature provided in request');
+    return false;
+  }
+
+  try {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+
+    const signatureBuffer = await crypto.subtle.sign(
+      'HMAC',
+      key,
+      encoder.encode(body)
+    );
+
+    const expectedSignature = arrayBufferToHex(signatureBuffer);
+    
+    // Compare signatures (case-insensitive)
+    const isValid = signature.toLowerCase() === expectedSignature.toLowerCase();
+    
+    if (!isValid) {
+      console.error('Signature mismatch');
+    }
+    
+    return isValid;
+  } catch (error) {
+    console.error('Error verifying signature:', error);
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -38,13 +84,46 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Get webhook secret
+    const webhookSecret = Deno.env.get('PTERODACTYL_WEBHOOK_SECRET');
+    if (!webhookSecret) {
+      console.error('PTERODACTYL_WEBHOOK_SECRET not configured');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Webhook not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Read the raw body for signature verification
+    const body = await req.text();
+    
+    // Get signature from headers (Pterodactyl uses X-Signature header)
+    const signature = req.headers.get('x-signature') || req.headers.get('x-pterodactyl-signature');
+    
+    // Verify the webhook signature
+    const isValid = await verifyWebhookSignature(body, signature, webhookSecret);
+    if (!isValid) {
+      console.error('Invalid webhook signature - rejecting request');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Webhook signature verified successfully');
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    const payload: PterodactylWebhookPayload = await req.json()
+    const payload: PterodactylWebhookPayload = JSON.parse(body);
     
-    console.log('Received Pterodactyl webhook:', JSON.stringify(payload, null, 2))
+    console.log('Received Pterodactyl webhook:', JSON.stringify({
+      resource: payload.resource,
+      action: payload.action,
+      server_id: payload.server?.id,
+      server_identifier: payload.server?.identifier
+    }));
 
     // Check if this is a server deletion event
     if (payload.resource !== 'server' || payload.action !== 'deleted') {

@@ -6,14 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface ServiceStatus {
+// Simplified public status response - no server counts or detailed metrics
+interface PublicServiceStatus {
   name: string;
-  slug: string;
-  category: string;
-  total_servers: number;
-  running: number;
-  offline: number;
-  errors: number;
   status: 'operational' | 'degraded' | 'partial' | 'down' | 'unknown';
 }
 
@@ -32,7 +27,7 @@ serve(async (req) => {
     if (!pterodactylUrl || !pterodactylClientApiKey) {
       console.error('Missing Pterodactyl configuration');
       return new Response(
-        JSON.stringify({ error: 'Pterodactyl configuration missing' }),
+        JSON.stringify({ error: 'Service configuration missing' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -40,7 +35,7 @@ serve(async (req) => {
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error('Missing Supabase configuration');
       return new Response(
-        JSON.stringify({ error: 'Supabase configuration missing' }),
+        JSON.stringify({ error: 'Service configuration missing' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -62,7 +57,7 @@ serve(async (req) => {
     if (productsError) {
       console.error('Error fetching products:', productsError);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch products' }),
+        JSON.stringify({ error: 'Failed to fetch service status' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -77,12 +72,12 @@ serve(async (req) => {
     if (ordersError) {
       console.error('Error fetching orders:', ordersError);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch orders' }),
+        JSON.stringify({ error: 'Failed to fetch service status' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Found ${products?.length || 0} products and ${orders?.length || 0} active servers`);
+    console.log(`Checking status for ${products?.length || 0} services`);
 
     const headers = {
       'Authorization': `Bearer ${pterodactylClientApiKey}`,
@@ -90,7 +85,7 @@ serve(async (req) => {
       'Content-Type': 'application/json',
     };
 
-    // Fetch status for all servers
+    // Fetch status for all servers (internal only)
     const serverStatuses = await Promise.all(
       (orders || []).map(async (order) => {
         try {
@@ -109,22 +104,22 @@ serve(async (req) => {
             state: data.attributes?.current_state || 'unknown'
           };
         } catch (err) {
-          console.error(`Error fetching status for ${order.pterodactyl_identifier}:`, err);
+          console.error(`Error fetching status for server:`, err);
           return { product_name: order.product_name, state: 'error' };
         }
       })
     );
 
-    // Aggregate status per product
-    const serviceStatuses: ServiceStatus[] = (products || []).map((product) => {
+    // Calculate status per product (without exposing counts)
+    const serviceStatuses: PublicServiceStatus[] = (products || []).map((product) => {
       const productServers = serverStatuses.filter(s => s.product_name === product.name);
       const total = productServers.length;
       const running = productServers.filter(s => s.state === 'running').length;
       const offline = productServers.filter(s => s.state === 'offline' || s.state === 'stopped').length;
       const errors = productServers.filter(s => s.state === 'error').length;
 
-      // Determine overall status for this service
-      let status: ServiceStatus['status'] = 'operational';
+      // Determine overall status for this service (without revealing counts)
+      let status: PublicServiceStatus['status'] = 'operational';
       if (total === 0) {
         status = 'operational'; // No servers = assume operational
       } else if (errors > 0 && errors === total) {
@@ -137,36 +132,23 @@ serve(async (req) => {
         status = 'operational';
       }
 
+      // Return only name and status - no counts or detailed metrics
       return {
         name: product.name,
-        slug: product.slug,
-        category: product.category,
-        total_servers: total,
-        running,
-        offline,
-        errors,
         status
       };
     });
 
     // Add static services (VPS, Web Hosting, Bot Hosting) that don't have Pterodactyl servers
-    const staticServices = [
-      { name: 'VPS Hosting', slug: 'vps', category: 'vps', status: 'operational' as const },
-      { name: 'Web Hosting', slug: 'web', category: 'web', status: 'operational' as const },
-      { name: 'Bot Hosting', slug: 'bot', category: 'bot', status: 'operational' as const },
+    const staticServices: PublicServiceStatus[] = [
+      { name: 'VPS Hosting', status: 'operational' },
+      { name: 'Web Hosting', status: 'operational' },
+      { name: 'Bot Hosting', status: 'operational' },
     ];
 
     // Only add static services if they don't exist in products
-    const existingSlugs = serviceStatuses.map(s => s.slug);
-    const additionalServices = staticServices
-      .filter(s => !existingSlugs.includes(s.slug))
-      .map(s => ({
-        ...s,
-        total_servers: 0,
-        running: 0,
-        offline: 0,
-        errors: 0
-      }));
+    const existingNames = serviceStatuses.map(s => s.name);
+    const additionalServices = staticServices.filter(s => !existingNames.includes(s.name));
 
     const allServices = [...serviceStatuses, ...additionalServices];
 
@@ -186,8 +168,9 @@ serve(async (req) => {
       overallStatus = 'operational';
     }
 
-    console.log('Service status check complete:', { overall: overallStatus, services: allServices.length });
+    console.log('Service status check complete:', { overall: overallStatus });
 
+    // Return simplified public response - only name and status, no counts
     return new Response(
       JSON.stringify({ 
         services: allServices, 
@@ -201,7 +184,7 @@ serve(async (req) => {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in get-all-servers-status function:', errorMessage);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: 'Failed to fetch service status' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
