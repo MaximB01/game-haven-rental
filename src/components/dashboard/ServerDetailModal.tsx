@@ -177,10 +177,10 @@ const ServerDetailModal = ({ order, open, onOpenChange, onOrderUpdated }: Server
             <div className="border-t border-border pt-4 space-y-3">
               <h4 className="text-sm font-medium text-foreground">{t('dashboard.actions')}</h4>
               
-              {isGameServer && isActive && (
+              {isGameServer && isActive && order.pterodactyl_identifier && (
                 <Button
                   className="w-full gaming-gradient-bg hover:opacity-90"
-                  onClick={() => window.open(PTERODACTYL_PANEL_URL, '_blank')}
+                  onClick={() => window.open(`${PTERODACTYL_PANEL_URL}/server/${order.pterodactyl_identifier}`, '_blank')}
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
                   {t('dashboard.openServerPanel')}
