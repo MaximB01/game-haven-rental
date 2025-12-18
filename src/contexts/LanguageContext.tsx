@@ -76,11 +76,11 @@ const translations: Translations = {
   'web.subtitle': { nl: 'Snelle en betrouwbare webhosting voor je website', en: 'Fast and reliable web hosting for your website' },
 
   // About Page
-  'about.title': { nl: 'Over CloudServe', en: 'About CloudServe' },
+  'about.title': { nl: 'Over CloudSurf', en: 'About CloudSurf' },
   'about.subtitle': { nl: 'Jouw partner in game server hosting', en: 'Your partner in game server hosting' },
   'about.mission.title': { nl: 'Onze Missie', en: 'Our Mission' },
   'about.mission.text': { nl: 'Wij geloven dat iedereen toegang moet hebben tot premium game server hosting. Daarom bieden wij betrouwbare, betaalbare en gebruiksvriendelijke oplossingen.', en: 'We believe everyone should have access to premium game server hosting. That\'s why we offer reliable, affordable and user-friendly solutions.' },
-  'about.why.title': { nl: 'Waarom CloudServe?', en: 'Why CloudServe?' },
+  'about.why.title': { nl: 'Waarom CloudSurf?', en: 'Why CloudSurf?' },
   'about.why.experience': { nl: 'Jarenlange ervaring in hosting', en: 'Years of hosting experience' },
   'about.why.hardware': { nl: 'Premium hardware', en: 'Premium hardware' },
   'about.why.support': { nl: 'Nederlandse support', en: 'Dutch support' },
@@ -122,7 +122,7 @@ const translations: Translations = {
   // Auth
   'auth.welcomeBack': { nl: 'Welkom terug', en: 'Welcome back' },
   'auth.createAccount': { nl: 'Account aanmaken', en: 'Create account' },
-  'auth.loginSubtitle': { nl: 'Log in op je CloudServe account', en: 'Log in to your CloudServe account' },
+  'auth.loginSubtitle': { nl: 'Log in op je CloudSurf account', en: 'Log in to your CloudSurf account' },
   'auth.signupSubtitle': { nl: 'Maak een nieuw account aan', en: 'Create a new account' },
   'auth.fullName': { nl: 'Volledige naam', en: 'Full name' },
   'auth.fullNamePlaceholder': { nl: 'Jan Jansen', en: 'John Doe' },

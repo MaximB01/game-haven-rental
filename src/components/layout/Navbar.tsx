@@ -151,7 +151,7 @@ const Navbar = () => {
               {/* <span className="text-primary-foreground font-bold text-xl">C</span> */}
               <img alt="" className="border-0" src="/lovable-uploads/3909e484-a3d5-44a9-b88b-c8e1c747e6b2.png" />
             </div>
-            <span className="text-xl font-bold text-foreground">CloudServe Hosting </span>
+            <span className="text-xl font-bold text-foreground">CloudSurf Hosting </span>
           </Link>
 
           {/* Desktop Navigation */}

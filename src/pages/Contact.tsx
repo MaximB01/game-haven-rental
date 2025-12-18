@@ -34,14 +34,14 @@ const Contact = () => {
     {
       icon: Mail,
       label: t('contact.info.email'),
-      value: 'support@cloudserve.be',
-      href: 'mailto:support@cloudserve.be',
+      value: 'support@cloudsurf.be',
+      href: 'mailto:support@cloudsurf.be',
     },
     {
       icon: MessageCircle,
       label: t('contact.info.discord'),
-      value: 'discord.gg/cloudserve',
-      href: 'https://discord.gg/cloudserve',
+      value: 'discord.gg/cloudsurf',
+      href: 'https://discord.gg/cloudsurf',
     },
     {
       icon: Clock,

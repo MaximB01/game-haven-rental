@@ -15,7 +15,7 @@ const Footer = () => {
               <div className="w-10 h-10 gaming-gradient-bg rounded-lg flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-xl">C</span>
               </div>
-              <span className="text-xl font-bold text-foreground">CloudServe</span>
+              <span className="text-xl font-bold text-foreground">CloudSurf</span>
             </Link>
             <p className="text-muted-foreground text-sm">
               {t('footer.description')}
@@ -98,7 +98,7 @@ const Footer = () => {
         </div>
 
         <div className="border-t border-border mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} CloudServe. {t('footer.rights')}</p>
+          <p>© {new Date().getFullYear()} CloudSurf. {t('footer.rights')}</p>
         </div>
       </div>
     </footer>
