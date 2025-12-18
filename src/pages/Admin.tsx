@@ -1436,6 +1436,7 @@ const Admin = () => {
                               <Select
                                 value={order.status}
                                 onValueChange={(value) => handleUpdateOrderStatus(order.id, value)}
+                                disabled={order.status === 'archived'}
                               >
                                 <SelectTrigger className="w-32">
                                   <SelectValue />
@@ -1445,6 +1446,7 @@ const Admin = () => {
                                   <SelectItem value="suspended">Suspended</SelectItem>
                                   <SelectItem value="cancelled">Cancelled</SelectItem>
                                   <SelectItem value="failed">Failed</SelectItem>
+                                  <SelectItem value="archived">Archived</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
