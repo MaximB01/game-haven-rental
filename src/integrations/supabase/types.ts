@@ -412,6 +412,7 @@ export type Database = {
           category: string
           created_at: string
           description: string
+          display_id: string | null
           id: string
           is_archived: boolean
           priority: Database["public"]["Enums"]["ticket_priority"]
@@ -425,6 +426,7 @@ export type Database = {
           category?: string
           created_at?: string
           description: string
+          display_id?: string | null
           id?: string
           is_archived?: boolean
           priority?: Database["public"]["Enums"]["ticket_priority"]
@@ -438,6 +440,7 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string
+          display_id?: string | null
           id?: string
           is_archived?: boolean
           priority?: Database["public"]["Enums"]["ticket_priority"]
