@@ -35,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Ticket {
   id: string;
+  display_id: string | null;
   subject: string;
   description: string;
   status: 'open' | 'in_progress' | 'awaiting_reply' | 'closed';
@@ -76,6 +77,7 @@ const Tickets = () => {
   const [isStaff, setIsStaff] = useState(false);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [activeTab, setActiveTab] = useState('active');
+  const [searchQuery, setSearchQuery] = useState('');
   const [newTicket, setNewTicket] = useState({
     subject: '',
     description: '',
@@ -376,9 +378,19 @@ const Tickets = () => {
     return staff?.full_name || staff?.email || userId;
   };
 
-  const filteredTickets = tickets.filter(t => 
-    activeTab === 'archived' ? t.is_archived : !t.is_archived
-  );
+  const filteredTickets = tickets.filter(t => {
+    const matchesTab = activeTab === 'archived' ? t.is_archived : !t.is_archived;
+    if (!matchesTab) return false;
+    
+    if (!searchQuery.trim()) return true;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return (
+      t.display_id?.toLowerCase().includes(query) ||
+      t.subject.toLowerCase().includes(query) ||
+      t.description.toLowerCase().includes(query)
+    );
+  });
 
   if (loading) {
     return (
@@ -412,7 +424,13 @@ const Tickets = () => {
           {/* Ticket List */}
           <div className="lg:col-span-1 space-y-4">
             <Card>
-              <CardHeader className="py-3">
+              <CardHeader className="py-3 space-y-3">
+                <Input
+                  placeholder={language === 'nl' ? 'Zoek op ticket ID of onderwerp...' : 'Search by ticket ID or subject...'}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-9"
+                />
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsList className="w-full">
                     <TabsTrigger value="active" className="flex-1">
@@ -446,7 +464,14 @@ const Tickets = () => {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-foreground truncate">{ticket.subject}</p>
+                            <div className="flex items-center gap-2">
+                              {ticket.display_id && (
+                                <span className="text-xs font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                                  {ticket.display_id}
+                                </span>
+                              )}
+                              <p className="font-medium text-foreground truncate">{ticket.subject}</p>
+                            </div>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               {getStatusBadge(ticket.status)}
                               {getPriorityBadge(ticket.priority)}
@@ -487,6 +512,13 @@ const Tickets = () => {
                         <ArrowLeft className="h-4 w-4 mr-1" />
                         {language === 'nl' ? 'Terug' : 'Back'}
                       </Button>
+                      <div className="flex items-center gap-2 mb-1">
+                        {selectedTicket.display_id && (
+                          <span className="text-sm font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">
+                            {selectedTicket.display_id}
+                          </span>
+                        )}
+                      </div>
                       <CardTitle>{selectedTicket.subject}</CardTitle>
                       <CardDescription className="mt-2">
                         {selectedTicket.description}
