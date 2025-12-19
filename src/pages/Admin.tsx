@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, ArchiveRestore, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, MessageSquare, Send, HelpCircle, BookOpen, UserCircle, RefreshCw, ExternalLink } from 'lucide-react';
+import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, HelpCircle, BookOpen, RefreshCw, ExternalLink } from 'lucide-react';
 import ProductImageUpload from '@/components/admin/ProductImageUpload';
 import FAQManagement from '@/components/admin/FAQManagement';
 import KnowledgeBaseManagement from '@/components/admin/KnowledgeBaseManagement';
@@ -82,34 +82,6 @@ interface ProductVariant {
   sort_order: number;
 }
 
-interface Ticket {
-  id: string;
-  user_id: string;
-  subject: string;
-  description: string;
-  status: 'open' | 'in_progress' | 'awaiting_reply' | 'closed';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  category: string;
-  created_at: string;
-  updated_at: string;
-  assigned_to: string | null;
-  is_archived: boolean;
-}
-
-interface TicketReply {
-  id: string;
-  ticket_id: string;
-  user_id: string;
-  message: string;
-  is_staff: boolean;
-  created_at: string;
-}
-
-interface StaffMember {
-  user_id: string;
-  full_name: string | null;
-  email: string | null;
-}
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -138,15 +110,6 @@ const Admin = () => {
   const [expandedProducts, setExpandedProducts] = useState<string[]>([]);
   const [productVariants, setProductVariants] = useState<ProductVariant[]>([]);
   
-  // Ticket state
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [ticketReplies, setTicketReplies] = useState<TicketReply[]>([]);
-  const [newTicketReply, setNewTicketReply] = useState('');
-  const [sendingReply, setSendingReply] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
-  const [ticketTab, setTicketTab] = useState<'active' | 'archived'>('active');
   const [syncingPterodactyl, setSyncingPterodactyl] = useState(false);
 
   // Product form state
@@ -209,7 +172,7 @@ const Admin = () => {
       return;
     }
 
-    setCurrentUserId(user.id);
+    
 
     // Check for admin OR moderator role
     const { data: hasAdminRole } = await supabase.rpc('has_role', {
@@ -233,7 +196,7 @@ const Admin = () => {
     }
 
     setIsAdmin(true);
-    await Promise.all([fetchUsers(), fetchOrders(), fetchUserRoles(), fetchProducts(), fetchProductPlans(), fetchProductVariants(), fetchTickets(), fetchStaffMembers()]);
+    await Promise.all([fetchUsers(), fetchOrders(), fetchUserRoles(), fetchProducts(), fetchProductPlans(), fetchProductVariants()]);
     setLoading(false);
   };
 
@@ -328,222 +291,6 @@ const Admin = () => {
     if (data) setProductVariants(data as ProductVariant[]);
   };
 
-  const fetchTickets = async () => {
-    const { data } = await supabase
-      .from('tickets')
-      .select('*')
-      .order('updated_at', { ascending: false });
-    
-    if (data) setTickets(data as Ticket[]);
-  };
-
-  const fetchStaffMembers = async () => {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('user_id')
-      .in('role', ['admin', 'moderator']);
-    
-    if (error || !data) return;
-    
-    const userIds = data.map(r => r.user_id);
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('user_id, full_name, email')
-      .in('user_id', userIds);
-    
-    setStaffMembers(profiles || []);
-  };
-
-  const fetchTicketReplies = async (ticketId: string) => {
-    const { data } = await supabase
-      .from('ticket_replies')
-      .select('*')
-      .eq('ticket_id', ticketId)
-      .order('created_at', { ascending: true });
-    
-    if (data) setTicketReplies(data as TicketReply[]);
-  };
-
-  const handleSelectTicket = async (ticket: Ticket) => {
-    setSelectedTicket(ticket);
-    await fetchTicketReplies(ticket.id);
-  };
-
-  const handleSendTicketReply = async () => {
-    if (!selectedTicket || !newTicketReply.trim() || !currentUserId) return;
-
-    setSendingReply(true);
-    const { error } = await supabase
-      .from('ticket_replies')
-      .insert({
-        ticket_id: selectedTicket.id,
-        user_id: currentUserId,
-        message: newTicketReply.trim(),
-        is_staff: true,
-      });
-
-    if (error) {
-      toast({
-        title: language === 'nl' ? 'Fout' : 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else {
-      setNewTicketReply('');
-      await fetchTicketReplies(selectedTicket.id);
-      // Update ticket status to in_progress if it was open or awaiting_reply
-      if (selectedTicket.status === 'open' || selectedTicket.status === 'awaiting_reply') {
-        await supabase
-          .from('tickets')
-          .update({ status: 'in_progress' })
-          .eq('id', selectedTicket.id);
-        await fetchTickets();
-        setSelectedTicket({ ...selectedTicket, status: 'in_progress' });
-      }
-    }
-    setSendingReply(false);
-  };
-
-  const handleUpdateTicketStatus = async (ticketId: string, status: Ticket['status']) => {
-    const { error } = await supabase
-      .from('tickets')
-      .update({ status: status as any })
-      .eq('id', ticketId);
-
-    if (error) {
-      toast({
-        title: language === 'nl' ? 'Fout' : 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: language === 'nl' ? 'Status bijgewerkt' : 'Status updated',
-      });
-      await fetchTickets();
-      if (selectedTicket?.id === ticketId) {
-        setSelectedTicket({ ...selectedTicket, status: status as Ticket['status'] });
-      }
-    }
-  };
-
-  const handleUpdateTicketPriority = async (ticketId: string, priority: Ticket['priority']) => {
-    const { error } = await supabase
-      .from('tickets')
-      .update({ priority: priority as any })
-      .eq('id', ticketId);
-
-    if (error) {
-      toast({
-        title: language === 'nl' ? 'Fout' : 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: language === 'nl' ? 'Prioriteit bijgewerkt' : 'Priority updated',
-      });
-      await fetchTickets();
-      if (selectedTicket?.id === ticketId) {
-        setSelectedTicket({ ...selectedTicket, priority: priority as Ticket['priority'] });
-      }
-    }
-  };
-
-  const handleAssignTicket = async (ticketId: string, assignedTo: string | null) => {
-    const { error } = await supabase
-      .from('tickets')
-      .update({ assigned_to: assignedTo })
-      .eq('id', ticketId);
-
-    if (error) {
-      toast({
-        title: language === 'nl' ? 'Fout' : 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: language === 'nl' ? 'Ticket toegewezen' : 'Ticket assigned',
-      });
-      await fetchTickets();
-      if (selectedTicket?.id === ticketId) {
-        setSelectedTicket({ ...selectedTicket, assigned_to: assignedTo });
-      }
-    }
-  };
-
-  const handleArchiveTicket = async (ticketId: string, archive: boolean) => {
-    const updateData: { is_archived: boolean; status?: 'closed' } = { is_archived: archive };
-    if (archive) {
-      updateData.status = 'closed';
-    }
-    
-    const { error } = await supabase
-      .from('tickets')
-      .update(updateData as any)
-      .eq('id', ticketId);
-
-    if (error) {
-      toast({
-        title: language === 'nl' ? 'Fout' : 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: archive 
-          ? (language === 'nl' ? 'Ticket gearchiveerd' : 'Ticket archived')
-          : (language === 'nl' ? 'Ticket hersteld' : 'Ticket restored'),
-      });
-      await fetchTickets();
-      if (selectedTicket?.id === ticketId) {
-        setSelectedTicket(null);
-      }
-    }
-  };
-
-  const getStaffName = (userId: string | null) => {
-    if (!userId) return null;
-    const staff = staffMembers.find(s => s.user_id === userId);
-    return staff?.full_name || staff?.email || userId;
-  };
-
-  const filteredTickets = tickets.filter(t => 
-    ticketTab === 'archived' ? t.is_archived : !t.is_archived
-  );
-
-  const getTicketStatusBadge = (status: string) => {
-    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline' | 'warning' | 'info'> = {
-      open: 'default',
-      in_progress: 'warning',
-      awaiting_reply: 'info',
-      closed: 'destructive',
-    };
-    const labels: Record<string, string> = {
-      open: language === 'nl' ? 'Open' : 'Open',
-      in_progress: language === 'nl' ? 'In behandeling' : 'In Progress',
-      awaiting_reply: language === 'nl' ? 'Wacht op reactie' : 'Awaiting Reply',
-      closed: language === 'nl' ? 'Gesloten' : 'Closed',
-    };
-    return <Badge variant={variants[status] || 'outline'}>{labels[status] || status}</Badge>;
-  };
-
-  const getTicketPriorityBadge = (priority: string) => {
-    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-      low: 'outline',
-      medium: 'secondary',
-      high: 'default',
-      urgent: 'destructive',
-    };
-    const labels: Record<string, string> = {
-      low: language === 'nl' ? 'Laag' : 'Low',
-      medium: language === 'nl' ? 'Normaal' : 'Medium',
-      high: language === 'nl' ? 'Hoog' : 'High',
-      urgent: language === 'nl' ? 'Urgent' : 'Urgent',
-    };
-    return <Badge variant={variants[priority] || 'outline'}>{labels[priority] || priority}</Badge>;
-  };
 
   const getUserRole = (userId: string) => {
     const role = userRoles.find(r => r.user_id === userId);
@@ -1005,15 +752,6 @@ const Admin = () => {
               <div className="text-2xl font-bold">{products.length}</div>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">{language === 'nl' ? 'Open Tickets' : 'Open Tickets'}</CardTitle>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{tickets.filter(t => t.status === 'open' || t.status === 'awaiting_reply').length}</div>
-            </CardContent>
-          </Card>
         </div>
 
         <Tabs defaultValue="users" className="space-y-6">
@@ -1033,15 +771,6 @@ const Admin = () => {
             <TabsTrigger value="archive" className="flex items-center gap-2">
               <Archive className="h-4 w-4" />
               {t('admin.archive')}
-            </TabsTrigger>
-            <TabsTrigger value="tickets" className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              {language === 'nl' ? 'Tickets' : 'Tickets'}
-              {tickets.filter(t => t.status === 'open' || t.status === 'awaiting_reply').length > 0 && (
-                <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                  {tickets.filter(t => t.status === 'open' || t.status === 'awaiting_reply').length}
-                </Badge>
-              )}
             </TabsTrigger>
             <TabsTrigger value="faq" className="flex items-center gap-2">
               <HelpCircle className="h-4 w-4" />
@@ -1476,242 +1205,6 @@ const Admin = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="tickets">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Ticket List */}
-              <div className="lg:col-span-1">
-                <Card>
-                  <CardHeader className="py-3">
-                    <Tabs value={ticketTab} onValueChange={(v) => setTicketTab(v as 'active' | 'archived')}>
-                      <TabsList className="w-full">
-                        <TabsTrigger value="active" className="flex-1">
-                          {language === 'nl' ? 'Actief' : 'Active'}
-                          <Badge variant="outline" className="ml-2">{tickets.filter(t => !t.is_archived).length}</Badge>
-                        </TabsTrigger>
-                        <TabsTrigger value="archived" className="flex-1">
-                          <Archive className="h-4 w-4 mr-1" />
-                          {language === 'nl' ? 'Archief' : 'Archived'}
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </CardHeader>
-                  <CardContent className="p-0 max-h-[600px] overflow-y-auto">
-                    {filteredTickets.length === 0 ? (
-                      <div className="p-6 text-center text-muted-foreground">
-                        <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>{ticketTab === 'archived' 
-                          ? (language === 'nl' ? 'Geen gearchiveerde tickets' : 'No archived tickets')
-                          : (language === 'nl' ? 'Geen tickets' : 'No tickets')
-                        }</p>
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-border">
-                        {filteredTickets.map((ticket) => (
-                          <button
-                            key={ticket.id}
-                            onClick={() => handleSelectTicket(ticket)}
-                            className={`w-full text-left p-4 hover:bg-muted/50 transition-colors ${
-                              selectedTicket?.id === ticket.id ? 'bg-muted' : ''
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-foreground truncate">{ticket.subject}</p>
-                                <p className="text-xs text-muted-foreground mt-1 truncate">
-                                  {getUserName(ticket.user_id)}
-                                </p>
-                                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                  {getTicketStatusBadge(ticket.status)}
-                                  {getTicketPriorityBadge(ticket.priority)}
-                                </div>
-                                {ticket.assigned_to && (
-                                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                                    <UserCircle className="h-3 w-3" />
-                                    {getStaffName(ticket.assigned_to)}
-                                  </p>
-                                )}
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {new Date(ticket.updated_at).toLocaleDateString()}
-                                </p>
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Ticket Detail / Chat */}
-              <div className="lg:col-span-2">
-                {selectedTicket ? (
-                  <Card className="h-[600px] flex flex-col">
-                    <CardHeader className="border-b">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <CardTitle className="text-lg">{selectedTicket.subject}</CardTitle>
-                          <CardDescription className="mt-2">
-                            <span className="font-medium">{getUserName(selectedTicket.user_id)}</span>
-                            <span className="mx-2">•</span>
-                            <span>{selectedTicket.category}</span>
-                          </CardDescription>
-                          <p className="text-sm text-muted-foreground mt-2 bg-muted/50 p-3 rounded-lg">
-                            {selectedTicket.description}
-                          </p>
-                          {selectedTicket.assigned_to && (
-                            <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1">
-                              <UserCircle className="h-4 w-4" />
-                              {language === 'nl' ? 'Toegewezen aan:' : 'Assigned to:'} {getStaffName(selectedTicket.assigned_to)}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                          {/* Status */}
-                          <Select
-                            value={selectedTicket.status}
-                            onValueChange={(value: Ticket['status']) => handleUpdateTicketStatus(selectedTicket.id, value)}
-                          >
-                            <SelectTrigger className="w-40">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="open">{language === 'nl' ? 'Open' : 'Open'}</SelectItem>
-                              <SelectItem value="in_progress">{language === 'nl' ? 'In behandeling' : 'In Progress'}</SelectItem>
-                              <SelectItem value="awaiting_reply">{language === 'nl' ? 'Wacht op reactie' : 'Awaiting Reply'}</SelectItem>
-                              <SelectItem value="closed">{language === 'nl' ? 'Gesloten' : 'Closed'}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          
-                          {/* Priority */}
-                          <Select
-                            value={selectedTicket.priority}
-                            onValueChange={(value: Ticket['priority']) => handleUpdateTicketPriority(selectedTicket.id, value)}
-                          >
-                            <SelectTrigger className="w-40">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="low">{language === 'nl' ? 'Laag' : 'Low'}</SelectItem>
-                              <SelectItem value="medium">{language === 'nl' ? 'Normaal' : 'Medium'}</SelectItem>
-                              <SelectItem value="high">{language === 'nl' ? 'Hoog' : 'High'}</SelectItem>
-                              <SelectItem value="urgent">{language === 'nl' ? 'Urgent' : 'Urgent'}</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          
-                          {/* Assign */}
-                          <Select
-                            value={selectedTicket.assigned_to || 'unassigned'}
-                            onValueChange={(value) => handleAssignTicket(selectedTicket.id, value === 'unassigned' ? null : value)}
-                          >
-                            <SelectTrigger className="w-40">
-                              <SelectValue placeholder={language === 'nl' ? 'Toewijzen' : 'Assign'} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="unassigned">{language === 'nl' ? 'Niemand' : 'Unassigned'}</SelectItem>
-                              {staffMembers.map(staff => (
-                                <SelectItem key={staff.user_id} value={staff.user_id}>
-                                  {staff.full_name || staff.email || staff.user_id}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          
-                          {/* Archive/Restore */}
-                          {selectedTicket.is_archived ? (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleArchiveTicket(selectedTicket.id, false)}
-                            >
-                              <ArchiveRestore className="h-4 w-4 mr-2" />
-                              {language === 'nl' ? 'Herstellen' : 'Restore'}
-                            </Button>
-                          ) : (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleArchiveTicket(selectedTicket.id, true)}
-                            >
-                              <Archive className="h-4 w-4 mr-2" />
-                              {language === 'nl' ? 'Archiveren' : 'Archive'}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
-                      {ticketReplies.length === 0 ? (
-                        <div className="text-center text-muted-foreground py-8">
-                          <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                          <p>{language === 'nl' ? 'Nog geen reacties' : 'No replies yet'}</p>
-                        </div>
-                      ) : (
-                        ticketReplies.map((reply) => (
-                          <div
-                            key={reply.id}
-                            className={`flex ${reply.is_staff ? 'justify-end' : 'justify-start'}`}
-                          >
-                            <div
-                              className={`max-w-[80%] rounded-lg p-3 ${
-                                reply.is_staff
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'bg-muted text-muted-foreground'
-                              }`}
-                            >
-                              <p className="text-sm">{reply.message}</p>
-                              <p className={`text-xs mt-1 ${reply.is_staff ? 'text-primary-foreground/70' : 'text-muted-foreground/70'}`}>
-                                {reply.is_staff ? '👨‍💻 Staff' : getUserName(reply.user_id)} • {new Date(reply.created_at).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </CardContent>
-                    {selectedTicket.status !== 'closed' && !selectedTicket.is_archived && (
-                      <div className="p-4 border-t">
-                        <div className="flex gap-2">
-                          <Textarea
-                            placeholder={language === 'nl' ? 'Typ je antwoord...' : 'Type your reply...'}
-                            value={newTicketReply}
-                            onChange={(e) => setNewTicketReply(e.target.value)}
-                            className="min-h-[60px]"
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSendTicketReply();
-                              }
-                            }}
-                          />
-                          <Button onClick={handleSendTicketReply} disabled={sendingReply || !newTicketReply.trim()}>
-                            {sendingReply ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Send className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                ) : (
-                  <Card className="h-[600px] flex items-center justify-center">
-                    <div className="text-center text-muted-foreground">
-                      <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                      <p className="text-lg font-medium">
-                        {language === 'nl' ? 'Selecteer een ticket' : 'Select a ticket'}
-                      </p>
-                      <p className="text-sm mt-1">
-                        {language === 'nl' 
-                          ? 'Klik op een ticket om de details te bekijken'
-                          : 'Click on a ticket to view its details'}
-                      </p>
-                    </div>
-                  </Card>
-                )}
-              </div>
-            </div>
-          </TabsContent>
 
           {/* FAQ Management Tab */}
           <TabsContent value="faq">
