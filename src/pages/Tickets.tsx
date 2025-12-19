@@ -78,6 +78,8 @@ const Tickets = () => {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [activeTab, setActiveTab] = useState('active');
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [newTicket, setNewTicket] = useState({
     subject: '',
     description: '',
@@ -382,6 +384,13 @@ const Tickets = () => {
     const matchesTab = activeTab === 'archived' ? t.is_archived : !t.is_archived;
     if (!matchesTab) return false;
     
+    // Status filter
+    if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+    
+    // Priority filter
+    if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
+    
+    // Search query
     if (!searchQuery.trim()) return true;
     
     const query = searchQuery.toLowerCase().trim();
@@ -431,6 +440,32 @@ const Tickets = () => {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="h-9"
                 />
+                <div className="flex gap-2">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="h-9 flex-1">
+                      <SelectValue placeholder={language === 'nl' ? 'Status' : 'Status'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{language === 'nl' ? 'Alle statussen' : 'All statuses'}</SelectItem>
+                      <SelectItem value="open">{language === 'nl' ? 'Open' : 'Open'}</SelectItem>
+                      <SelectItem value="in_progress">{language === 'nl' ? 'In behandeling' : 'In Progress'}</SelectItem>
+                      <SelectItem value="awaiting_reply">{language === 'nl' ? 'Wacht op reactie' : 'Awaiting Reply'}</SelectItem>
+                      <SelectItem value="closed">{language === 'nl' ? 'Gesloten' : 'Closed'}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger className="h-9 flex-1">
+                      <SelectValue placeholder={language === 'nl' ? 'Prioriteit' : 'Priority'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{language === 'nl' ? 'Alle prioriteiten' : 'All priorities'}</SelectItem>
+                      <SelectItem value="low">{language === 'nl' ? 'Laag' : 'Low'}</SelectItem>
+                      <SelectItem value="medium">{language === 'nl' ? 'Normaal' : 'Medium'}</SelectItem>
+                      <SelectItem value="high">{language === 'nl' ? 'Hoog' : 'High'}</SelectItem>
+                      <SelectItem value="urgent">{language === 'nl' ? 'Urgent' : 'Urgent'}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsList className="w-full">
                     <TabsTrigger value="active" className="flex-1">
