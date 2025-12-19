@@ -768,10 +768,6 @@ const Admin = () => {
               <Package className="h-4 w-4" />
               {t('admin.products')}
             </TabsTrigger>
-            <TabsTrigger value="archive" className="flex items-center gap-2">
-              <Archive className="h-4 w-4" />
-              {t('admin.archive')}
-            </TabsTrigger>
             <TabsTrigger value="faq" className="flex items-center gap-2">
               <HelpCircle className="h-4 w-4" />
               FAQ
@@ -843,7 +839,7 @@ const Admin = () => {
 
           <TabsContent value="orders">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <div>
                   <CardTitle>{t('admin.orderManagement')}</CardTitle>
                   <CardDescription>{t('admin.orderDescriptionActive')}</CardDescription>
@@ -862,81 +858,181 @@ const Admin = () => {
                 </Button>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('dashboard.serverId')}</TableHead>
-                      <TableHead>{t('admin.product')}</TableHead>
-                      <TableHead>{t('admin.plan')}</TableHead>
-                      <TableHead>{t('admin.price')}</TableHead>
-                      <TableHead>{t('admin.status')}</TableHead>
-                      <TableHead>{t('admin.customer')}</TableHead>
-                      <TableHead>{t('admin.actions')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredOrders.filter(o => !['cancelled', 'failed', 'suspended', 'deleted', 'archived'].includes(o.status)).map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell><span className="font-mono text-sm text-primary">{order.display_id}</span></TableCell>
-                        <TableCell>{order.product_name}</TableCell>
-                        <TableCell>{order.plan_name}</TableCell>
-                        <TableCell>€{order.price.toFixed(2)}</TableCell>
-                        <TableCell>{getStatusBadge(order.status)}</TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{getUserName(order.user_id)}</p>
-                            <p className="text-xs text-muted-foreground font-mono">{order.user_id.slice(0, 8)}...</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedOrder(order);
-                                setOrderDetailOpen(true);
-                              }}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            {order.pterodactyl_server_id && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                asChild
-                              >
-                                <a 
-                                  href={`https://panel.smpmetdeboys.be/admin/servers/view/${order.pterodactyl_server_id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                </a>
-                              </Button>
-                            )}
-                            <Select
-                              value={order.status}
-                              onValueChange={(value) => handleUpdateOrderStatus(order.id, value)}
-                            >
-                              <SelectTrigger className="w-32">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pending">Pending</SelectItem>
-                                <SelectItem value="provisioning">Provisioning</SelectItem>
-                                <SelectItem value="active">Active</SelectItem>
-                                <SelectItem value="suspended">Suspended</SelectItem>
-                                <SelectItem value="cancelled">Cancelled</SelectItem>
-                                <SelectItem value="failed">Failed</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <Tabs defaultValue="active" className="w-full">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="active">
+                      {language === 'nl' ? 'Actief' : 'Active'}
+                      <Badge variant="outline" className="ml-2">
+                        {filteredOrders.filter(o => !['cancelled', 'failed', 'suspended', 'deleted', 'archived'].includes(o.status)).length}
+                      </Badge>
+                    </TabsTrigger>
+                    <TabsTrigger value="archived" className="flex items-center gap-1">
+                      <Archive className="h-4 w-4" />
+                      {language === 'nl' ? 'Archief' : 'Archive'}
+                      <Badge variant="outline" className="ml-1">
+                        {filteredOrders.filter(o => ['cancelled', 'failed', 'suspended', 'deleted', 'archived'].includes(o.status)).length}
+                      </Badge>
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="active">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t('dashboard.serverId')}</TableHead>
+                          <TableHead>{t('admin.product')}</TableHead>
+                          <TableHead>{t('admin.plan')}</TableHead>
+                          <TableHead>{t('admin.price')}</TableHead>
+                          <TableHead>{t('admin.status')}</TableHead>
+                          <TableHead>{t('admin.customer')}</TableHead>
+                          <TableHead>{t('admin.actions')}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredOrders.filter(o => !['cancelled', 'failed', 'suspended', 'deleted', 'archived'].includes(o.status)).length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                              {language === 'nl' ? 'Geen actieve bestellingen' : 'No active orders'}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredOrders.filter(o => !['cancelled', 'failed', 'suspended', 'deleted', 'archived'].includes(o.status)).map((order) => (
+                            <TableRow key={order.id}>
+                              <TableCell><span className="font-mono text-sm text-primary">{order.display_id}</span></TableCell>
+                              <TableCell>{order.product_name}</TableCell>
+                              <TableCell>{order.plan_name}</TableCell>
+                              <TableCell>€{order.price.toFixed(2)}</TableCell>
+                              <TableCell>{getStatusBadge(order.status)}</TableCell>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium">{getUserName(order.user_id)}</p>
+                                  <p className="text-xs text-muted-foreground font-mono">{order.user_id.slice(0, 8)}...</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedOrder(order);
+                                      setOrderDetailOpen(true);
+                                    }}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  {order.pterodactyl_server_id && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      asChild
+                                    >
+                                      <a 
+                                        href={`https://panel.smpmetdeboys.be/admin/servers/view/${order.pterodactyl_server_id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                      >
+                                        <ExternalLink className="h-4 w-4" />
+                                      </a>
+                                    </Button>
+                                  )}
+                                  <Select
+                                    value={order.status}
+                                    onValueChange={(value) => handleUpdateOrderStatus(order.id, value)}
+                                  >
+                                    <SelectTrigger className="w-32">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="pending">Pending</SelectItem>
+                                      <SelectItem value="provisioning">Provisioning</SelectItem>
+                                      <SelectItem value="active">Active</SelectItem>
+                                      <SelectItem value="suspended">Suspended</SelectItem>
+                                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                                      <SelectItem value="failed">Failed</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TabsContent>
+                  
+                  <TabsContent value="archived">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t('dashboard.serverId')}</TableHead>
+                          <TableHead>{t('admin.product')}</TableHead>
+                          <TableHead>{t('admin.plan')}</TableHead>
+                          <TableHead>{t('admin.price')}</TableHead>
+                          <TableHead>{t('admin.status')}</TableHead>
+                          <TableHead>{t('admin.customer')}</TableHead>
+                          <TableHead>{t('admin.actions')}</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredOrders.filter(o => ['cancelled', 'failed', 'suspended', 'deleted', 'archived'].includes(o.status)).length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                              {t('admin.noArchivedOrders')}
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredOrders.filter(o => ['cancelled', 'failed', 'suspended', 'deleted', 'archived'].includes(o.status)).map((order) => (
+                            <TableRow key={order.id}>
+                              <TableCell><span className="font-mono text-sm text-primary">{order.display_id}</span></TableCell>
+                              <TableCell>{order.product_name}</TableCell>
+                              <TableCell>{order.plan_name}</TableCell>
+                              <TableCell>€{order.price.toFixed(2)}</TableCell>
+                              <TableCell>{getStatusBadge(order.status)}</TableCell>
+                              <TableCell>
+                                <div>
+                                  <p className="font-medium">{getUserName(order.user_id)}</p>
+                                  <p className="text-xs text-muted-foreground font-mono">{order.user_id.slice(0, 8)}...</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedOrder(order);
+                                      setOrderDetailOpen(true);
+                                    }}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Select
+                                    value={order.status}
+                                    onValueChange={(value) => handleUpdateOrderStatus(order.id, value)}
+                                    disabled={order.status === 'deleted' || order.status === 'archived'}
+                                  >
+                                    <SelectTrigger className="w-32">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="active">Reactivate</SelectItem>
+                                      <SelectItem value="suspended">Suspended</SelectItem>
+                                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                                      <SelectItem value="failed">Failed</SelectItem>
+                                      <SelectItem value="deleted">Deleted</SelectItem>
+                                      <SelectItem value="archived" disabled>Archived</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </TabsContent>
@@ -1124,87 +1220,6 @@ const Admin = () => {
               </CardContent>
             </Card>
           </TabsContent>
-
-          <TabsContent value="archive">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('admin.archiveManagement')}</CardTitle>
-                <CardDescription>{t('admin.archiveDescription')}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('dashboard.serverId')}</TableHead>
-                      <TableHead>{t('admin.product')}</TableHead>
-                      <TableHead>{t('admin.plan')}</TableHead>
-                      <TableHead>{t('admin.price')}</TableHead>
-                      <TableHead>{t('admin.status')}</TableHead>
-                      <TableHead>{t('admin.customer')}</TableHead>
-                      <TableHead>{t('admin.actions')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredOrders.filter(o => ['cancelled', 'failed', 'suspended', 'deleted', 'archived'].includes(o.status)).length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                          {t('admin.noArchivedOrders')}
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredOrders.filter(o => ['cancelled', 'failed', 'suspended', 'deleted', 'archived'].includes(o.status)).map((order) => (
-                        <TableRow key={order.id}>
-                          <TableCell><span className="font-mono text-sm text-primary">{order.display_id}</span></TableCell>
-                          <TableCell>{order.product_name}</TableCell>
-                          <TableCell>{order.plan_name}</TableCell>
-                          <TableCell>€{order.price.toFixed(2)}</TableCell>
-                          <TableCell>{getStatusBadge(order.status)}</TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{getUserName(order.user_id)}</p>
-                              <p className="text-xs text-muted-foreground font-mono">{order.user_id.slice(0, 8)}...</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedOrder(order);
-                                  setOrderDetailOpen(true);
-                                }}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Select
-                                value={order.status}
-                                onValueChange={(value) => handleUpdateOrderStatus(order.id, value)}
-                                disabled={order.status === 'deleted' || order.status === 'archived'}
-                              >
-                                <SelectTrigger className="w-32">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="active">Reactivate</SelectItem>
-                                  <SelectItem value="suspended">Suspended</SelectItem>
-                                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                                  <SelectItem value="failed">Failed</SelectItem>
-                                  <SelectItem value="deleted">Deleted</SelectItem>
-                                  <SelectItem value="archived" disabled>Archived</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
 
           {/* FAQ Management Tab */}
           <TabsContent value="faq">
