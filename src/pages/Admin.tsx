@@ -14,10 +14,11 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, HelpCircle, BookOpen, RefreshCw, ExternalLink } from 'lucide-react';
+import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, HelpCircle, BookOpen, RefreshCw, ExternalLink, Settings } from 'lucide-react';
 import ProductImageUpload from '@/components/admin/ProductImageUpload';
 import FAQManagement from '@/components/admin/FAQManagement';
 import KnowledgeBaseManagement from '@/components/admin/KnowledgeBaseManagement';
+import ConfigManagement from '@/components/admin/ConfigManagement';
 import {
   Dialog,
   DialogContent,
@@ -776,6 +777,10 @@ const Admin = () => {
               <BookOpen className="h-4 w-4" />
               {language === 'nl' ? 'Kennisbank' : 'Knowledge Base'}
             </TabsTrigger>
+            <TabsTrigger value="config" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              {language === 'nl' ? 'Configuratie' : 'Configuration'}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
@@ -1251,6 +1256,23 @@ const Admin = () => {
               </CardHeader>
               <CardContent>
                 <KnowledgeBaseManagement />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Configuration Management Tab */}
+          <TabsContent value="config">
+            <Card>
+              <CardHeader>
+                <CardTitle>{language === 'nl' ? 'Website Configuratie' : 'Website Configuration'}</CardTitle>
+                <CardDescription>
+                  {language === 'nl' 
+                    ? 'Beheer website instellingen, API keys, branding en meer'
+                    : 'Manage website settings, API keys, branding and more'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ConfigManagement />
               </CardContent>
             </Card>
           </TabsContent>
