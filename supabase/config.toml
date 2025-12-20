@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.pterodactyl-webhook]
 verify_jwt = false
+
+[functions.send-ticket-notification]
+verify_jwt = true
+
+[functions.sync-pterodactyl-servers]
+verify_jwt = true
