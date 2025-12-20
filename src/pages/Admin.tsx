@@ -14,11 +14,12 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, HelpCircle, BookOpen, RefreshCw, ExternalLink, Settings } from 'lucide-react';
+import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, HelpCircle, BookOpen, RefreshCw, ExternalLink, Settings, Mail } from 'lucide-react';
 import ProductImageUpload from '@/components/admin/ProductImageUpload';
 import FAQManagement from '@/components/admin/FAQManagement';
 import KnowledgeBaseManagement from '@/components/admin/KnowledgeBaseManagement';
 import ConfigManagement from '@/components/admin/ConfigManagement';
+import EmailTemplateManagement from '@/components/admin/EmailTemplateManagement';
 import {
   Dialog,
   DialogContent,
@@ -781,6 +782,10 @@ const Admin = () => {
               <Settings className="h-4 w-4" />
               {language === 'nl' ? 'Configuratie' : 'Configuration'}
             </TabsTrigger>
+            <TabsTrigger value="email-templates" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              {language === 'nl' ? 'E-mail Templates' : 'Email Templates'}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
@@ -1273,6 +1278,23 @@ const Admin = () => {
               </CardHeader>
               <CardContent>
                 <ConfigManagement />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Email Template Management Tab */}
+          <TabsContent value="email-templates">
+            <Card>
+              <CardHeader>
+                <CardTitle>{language === 'nl' ? 'E-mail Templates' : 'Email Templates'}</CardTitle>
+                <CardDescription>
+                  {language === 'nl' 
+                    ? 'Pas de HTML templates voor notificatie e-mails aan'
+                    : 'Customize HTML templates for notification emails'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <EmailTemplateManagement />
               </CardContent>
             </Card>
           </TabsContent>
