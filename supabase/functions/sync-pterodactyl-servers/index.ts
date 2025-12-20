@@ -47,6 +47,14 @@ interface ProductPlan {
   price: number;
 }
 
+interface ProductVariant {
+  id: string;
+  name: string;
+  product_id: string;
+  egg_id: number | null;
+  nest_id: number | null;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -155,9 +163,17 @@ serve(async (req) => {
       .select('id, name, category, egg_id, nest_id')
       .eq('is_active', true);
 
+    // Step 3b: Fetch product variants with egg_id (for games with multiple versions)
+    const { data: variants } = await supabase
+      .from('product_variants')
+      .select('id, name, product_id, egg_id, nest_id')
+      .eq('is_active', true);
+
     // Create lookup maps for matching
-    // Priority 1: exact egg_id match
+    // Priority 1: exact egg_id match (from products)
     const eggToProduct = new Map<number, Product>();
+    // Priority 1b: exact egg_id match from variants -> product
+    const variantEggToProduct = new Map<number, { product: Product; variant: ProductVariant }>();
     // Priority 2: nest_id match (more reliable for variants)
     const nestToProduct = new Map<number, Product>();
     
@@ -172,7 +188,21 @@ serve(async (req) => {
         }
       }
     }
-    console.log(`Loaded ${eggToProduct.size} products with egg_id, ${nestToProduct.size} with nest_id`);
+
+    // Map variant egg_ids to their parent products
+    for (const v of variants || []) {
+      if (v.egg_id !== null) {
+        const parentProduct = (products || []).find(p => p.id === v.product_id);
+        if (parentProduct) {
+          variantEggToProduct.set(v.egg_id, { 
+            product: parentProduct as Product, 
+            variant: v as ProductVariant 
+          });
+        }
+      }
+    }
+
+    console.log(`Loaded ${eggToProduct.size} products with egg_id, ${variantEggToProduct.size} variant egg mappings, ${nestToProduct.size} with nest_id`);
 
     // Step 4: Fetch product plans
     const { data: plans } = await supabase
@@ -321,28 +351,40 @@ serve(async (req) => {
         continue;
       }
 
-      // Try to match product: 1) egg_id, 2) nest_id, 3) RAM fallback
+      // Try to match product: 1) product egg_id, 2) variant egg_id, 3) nest_id, 4) RAM fallback
       const serverNestId = server.attributes.nest;
       let product = eggToProduct.get(serverEggId);
       let matchingPlan: ProductPlan | null = null;
+      let variantName: string | null = null;
+      let variantId: string | null = null;
 
       if (product) {
-        // Found product by exact egg_id
+        // Found product by exact egg_id from products table
         matchingPlan = findPlanForProduct(product.id, ram);
-        console.log(`Server ${serverId} (${serverName}): Matched to ${product.name} by egg_id ${serverEggId}`);
+        console.log(`Server ${serverId} (${serverName}): Matched to ${product.name} by product egg_id ${serverEggId}`);
       } else {
-        // Try nest_id match
-        product = nestToProduct.get(serverNestId);
-        if (product) {
+        // Try variant egg_id match
+        const variantMatch = variantEggToProduct.get(serverEggId);
+        if (variantMatch) {
+          product = variantMatch.product;
+          variantName = variantMatch.variant.name;
+          variantId = variantMatch.variant.id;
           matchingPlan = findPlanForProduct(product.id, ram);
-          console.log(`Server ${serverId} (${serverName}): Matched to ${product.name} by nest_id ${serverNestId}`);
+          console.log(`Server ${serverId} (${serverName}): Matched to ${product.name} (variant: ${variantName}) by variant egg_id ${serverEggId}`);
         } else {
-          // Final fallback: RAM-based matching
-          console.log(`Server ${serverId} (${serverName}): No product with egg_id ${serverEggId} or nest_id ${serverNestId}, using RAM fallback`);
-          const fallback = findAnyPlanByRam(ram);
-          if (fallback) {
-            product = fallback.product;
-            matchingPlan = fallback.plan;
+          // Try nest_id match
+          product = nestToProduct.get(serverNestId);
+          if (product) {
+            matchingPlan = findPlanForProduct(product.id, ram);
+            console.log(`Server ${serverId} (${serverName}): Matched to ${product.name} by nest_id ${serverNestId}`);
+          } else {
+            // Final fallback: RAM-based matching
+            console.log(`Server ${serverId} (${serverName}): No product with egg_id ${serverEggId} or nest_id ${serverNestId}, using RAM fallback`);
+            const fallback = findAnyPlanByRam(ram);
+            if (fallback) {
+              product = fallback.product;
+              matchingPlan = fallback.plan;
+            }
           }
         }
       }
@@ -371,6 +413,8 @@ serve(async (req) => {
           status: 'active',
           pterodactyl_server_id: serverId,
           pterodactyl_identifier: serverIdentifier,
+          variant_id: variantId,
+          variant_name: variantName,
         });
 
       if (insertError) {
