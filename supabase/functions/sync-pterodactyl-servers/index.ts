@@ -222,7 +222,7 @@ serve(async (req) => {
     // Step 5: Fetch existing orders with pterodactyl_server_id
     const { data: existingOrders } = await supabase
       .from('orders')
-      .select('id, pterodactyl_server_id, pterodactyl_identifier, status, display_id, product_name, variant_name, variant_id');
+      .select('id, pterodactyl_server_id, pterodactyl_identifier, status, display_id, product_name, variant_name, variant_id, plan_name');
 
     interface ExistingOrder {
       id: string;
@@ -233,6 +233,7 @@ serve(async (req) => {
       product_name: string;
       variant_name: string | null;
       variant_id: string | null;
+      plan_name: string;
     }
 
     // Map server_id -> order for quick lookup
@@ -414,13 +415,14 @@ serve(async (req) => {
 
       // Check if order exists and needs update
       if (existingOrder) {
-        // Check if product/variant/identifier changed
+        // Check if product/variant/identifier/plan changed
         const productChanged = existingOrder.product_name !== product.name;
         const variantChanged = existingOrder.variant_name !== variantName;
         const identifierChanged = existingOrder.pterodactyl_identifier !== serverIdentifier;
+        const planChanged = existingOrder.plan_name !== matchingPlan.name;
         
-        if (productChanged || variantChanged || identifierChanged) {
-          // Update existing order with correct product/variant/identifier
+        if (productChanged || variantChanged || identifierChanged || planChanged) {
+          // Update existing order with correct product/variant/identifier/plan
           const { error: updateError } = await supabase
             .from('orders')
             .update({
@@ -442,6 +444,7 @@ serve(async (req) => {
             if (productChanged) changes.push(`product: ${existingOrder.product_name} -> ${product.name}`);
             if (variantChanged) changes.push(`variant: ${existingOrder.variant_name || 'none'} -> ${variantName || 'none'}`);
             if (identifierChanged) changes.push(`identifier: ${existingOrder.pterodactyl_identifier || 'none'} -> ${serverIdentifier}`);
+            if (planChanged) changes.push(`plan: ${existingOrder.plan_name || 'none'} -> ${matchingPlan.name}`);
             console.log(`Updated order for server ${serverId} (${serverName}): ${changes.join(', ')}`);
             results.updated++;
           }
