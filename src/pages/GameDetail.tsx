@@ -181,7 +181,7 @@ const GameDetail = () => {
       // Get selected variant details
       const selectedVariantData = variants.find(v => v.id === selectedVariant);
 
-      // FiveM requires egg variables
+      // FiveM requires egg variables - store them for later use
       let environment: Record<string, string> | undefined;
       if (gameId === 'fivem') {
         const license = fivemLicense.trim();
@@ -212,76 +212,29 @@ const GameDetail = () => {
         };
       }
 
-      // Create order in database
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: user.id,
-          product_type: 'game_server',
-          product_name: product.name,
-          plan_name: plan.name,
+      // Navigate to checkout with all necessary data
+      navigate('/checkout', {
+        state: {
+          productId: product.id,
+          productName: product.name,
+          planId: plan.id,
+          planName: plan.name,
           price: plan.price,
-          status: 'provisioning',
-          variant_id: selectedVariant,
-          variant_name: selectedVariantData?.name || null,
-        })
-        .select()
-        .single();
-
-      if (orderError) {
-        console.error('Order creation error:', orderError);
-        throw new Error('Failed to create order');
-      }
-
-      // Call edge function to create Pterodactyl server
-      const { data: serverData, error: serverError } = await supabase.functions.invoke(
-        'create-pterodactyl-server',
-        {
-          body: {
-            orderId: order.id,
-            gameId: gameId,
-            planName: plan.name,
-            ram: plan.ram,
-            cpu: plan.cpu,
-            disk: plan.disk,
-            userId: user.id,
-            userEmail: user.email,
-            // Pass variant data for egg selection
-            variantId: selectedVariant,
-            eggId: selectedVariantData?.egg_id || product.egg_id,
-            nestId: selectedVariantData?.nest_id || product.nest_id,
-            dockerImage: selectedVariantData?.docker_image,
-            startupCommand: selectedVariantData?.startup_command,
-            minecraftVersion: gameId === 'minecraft' ? minecraftVersion : undefined,
-            environment,
-          },
+          variantId: selectedVariant,
+          variantName: selectedVariantData?.name,
+          productType: 'game_server',
+          gameId: gameId,
+          eggId: selectedVariantData?.egg_id || product.egg_id,
+          nestId: selectedVariantData?.nest_id || product.nest_id,
+          dockerImage: selectedVariantData?.docker_image,
+          startupCommand: selectedVariantData?.startup_command,
+          minecraftVersion: gameId === 'minecraft' ? minecraftVersion : undefined,
+          environment,
+          ram: plan.ram,
+          cpu: plan.cpu,
+          disk: plan.disk,
         }
-      );
-
-      if (serverError) {
-        console.error('Server creation error:', serverError);
-        await supabase
-          .from('orders')
-          .update({ status: 'failed' })
-          .eq('id', order.id);
-        throw new Error(serverError.message || 'Failed to create server');
-      }
-
-      if (serverData?.success) {
-        toast({
-          title: language === 'nl' ? 'Server aangemaakt!' : 'Server created!',
-          description: language === 'nl'
-            ? 'Je server wordt nu opgestart. Check je dashboard voor de status.'
-            : 'Your server is now starting up. Check your dashboard for status.',
-        });
-        navigate('/dashboard');
-      } else {
-        await supabase
-          .from('orders')
-          .update({ status: 'failed' })
-          .eq('id', order.id);
-        throw new Error(serverData?.error || 'Unknown error');
-      }
+      });
     } catch (error) {
       const msg = error instanceof Error ? error.message : undefined;
       console.error('Order error:', error);

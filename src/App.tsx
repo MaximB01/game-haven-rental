@@ -19,6 +19,9 @@ import Tickets from "./pages/Tickets";
 import FAQ from "./pages/FAQ";
 import KnowledgeBase from "./pages/KnowledgeBase";
 import KnowledgeBaseArticle from "./pages/KnowledgeBaseArticle";
+import Checkout from "./pages/Checkout";
+import CheckoutSuccess from "./pages/CheckoutSuccess";
+import CheckoutCancel from "./pages/CheckoutCancel";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +54,9 @@ const App = () => (
             <Route path="/faq" element={<FAQ />} />
             <Route path="/knowledge-base" element={<KnowledgeBase />} />
             <Route path="/knowledge-base/:slug" element={<KnowledgeBaseArticle />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/checkout/success" element={<CheckoutSuccess />} />
+            <Route path="/checkout/cancel" element={<CheckoutCancel />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

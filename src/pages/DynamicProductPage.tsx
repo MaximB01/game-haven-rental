@@ -5,6 +5,7 @@ import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface Product {
   id: string;
@@ -36,9 +37,11 @@ const DynamicProductPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { t, language } = useLanguage();
+  const { toast } = useToast();
   const [product, setProduct] = useState<Product | null>(null);
   const [plans, setPlans] = useState<ProductPlan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isOrdering, setIsOrdering] = useState<string | null>(null);
 
   // Determine the slug - either from param or from URL path
   const getSlugFromPath = () => {
@@ -117,6 +120,53 @@ const DynamicProductPage = () => {
       : ['DDoS protection', 'Daily backups', '99.9% uptime guarantee', 'Dutch datacenter', '24/7 support', 'Easy management'];
     
     return baseFeatures;
+  };
+
+  const handleOrder = async (plan: ProductPlan) => {
+    if (!product) return;
+
+    setIsOrdering(plan.id);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: language === 'nl' ? 'Inloggen vereist' : 'Login required',
+          description: language === 'nl' 
+            ? 'Je moet ingelogd zijn om te bestellen' 
+            : 'You need to be logged in to place an order',
+          variant: 'destructive',
+        });
+        navigate('/auth');
+        return;
+      }
+
+      // Navigate to checkout
+      navigate('/checkout', {
+        state: {
+          productId: product.id,
+          productName: product.name,
+          planId: plan.id,
+          planName: plan.name,
+          price: plan.price,
+          productType: product.category,
+          ram: plan.ram,
+          cpu: plan.cpu,
+          disk: plan.disk,
+        }
+      });
+    } catch (error) {
+      console.error('Order error:', error);
+      toast({
+        title: language === 'nl' ? 'Fout' : 'Error',
+        description: language === 'nl'
+          ? 'Er ging iets mis. Probeer het opnieuw.'
+          : 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsOrdering(null);
+    }
   };
 
   if (loading) {
@@ -218,8 +268,12 @@ const DynamicProductPage = () => {
                   className={`w-full ${plan.popular && !product.temporarily_unavailable ? 'gaming-gradient-bg hover:opacity-90' : ''}`}
                   variant={plan.popular && !product.temporarily_unavailable ? 'default' : 'outline'}
                   size="lg"
-                  disabled={product.temporarily_unavailable}
+                  disabled={product.temporarily_unavailable || isOrdering === plan.id}
+                  onClick={() => handleOrder(plan)}
                 >
+                  {isOrdering === plan.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
                   {product.temporarily_unavailable 
                     ? (language === 'nl' ? 'Niet beschikbaar' : 'Unavailable')
                     : t('pricing.orderNow')}
