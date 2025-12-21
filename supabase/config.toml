@@ -20,3 +20,15 @@ verify_jwt = true
 
 [functions.sync-pterodactyl-servers]
 verify_jwt = true
+
+[functions.stripe-create-checkout]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.stripe-sync-products]
+verify_jwt = true
+
+[functions.stripe-customer-portal]
+verify_jwt = true
