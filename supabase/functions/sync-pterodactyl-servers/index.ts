@@ -283,24 +283,21 @@ serve(async (req) => {
       }
     }
 
-    // Helper function to find best matching plan for a product based on RAM
+    // Helper function to find exact matching plan for a product based on RAM
+    // Returns null if no exact match found (will be marked as Custom)
     const findPlanForProduct = (productId: string, ramMb: number): ProductPlan | null => {
       const productPlans = plansByProduct.get(productId);
       if (!productPlans || productPlans.length === 0) return null;
       
-      // Find the plan with closest RAM match
-      let bestPlan: ProductPlan | null = null;
-      let smallestDiff = Infinity;
-      
+      // Find exact RAM match only
       for (const plan of productPlans) {
-        const diff = Math.abs(plan.ram - ramMb);
-        if (diff < smallestDiff) {
-          smallestDiff = diff;
-          bestPlan = plan;
+        if (plan.ram === ramMb) {
+          return plan;
         }
       }
       
-      return bestPlan;
+      // No exact match found
+      return null;
     };
 
     // Fallback: find any plan matching RAM (for unknown products)
@@ -407,10 +404,12 @@ serve(async (req) => {
         continue;
       }
 
+      // Determine plan name and price - use "Custom" if no exact match
+      const planName = matchingPlan ? matchingPlan.name : 'Custom';
+      const planPrice = matchingPlan ? matchingPlan.price : 0;
+      
       if (!matchingPlan) {
-        console.log(`Server ${serverId} (${serverName}): No matching plan for ${ram}MB RAM`);
-        results.noPlan++;
-        continue;
+        console.log(`Server ${serverId} (${serverName}): No exact plan match for ${ram}MB RAM - marking as Custom`);
       }
 
       // Check if order exists and needs update
@@ -419,7 +418,7 @@ serve(async (req) => {
         const productChanged = existingOrder.product_name !== product.name;
         const variantChanged = existingOrder.variant_name !== variantName;
         const identifierChanged = existingOrder.pterodactyl_identifier !== serverIdentifier;
-        const planChanged = existingOrder.plan_name !== matchingPlan.name;
+        const planChanged = existingOrder.plan_name !== planName;
         
         if (productChanged || variantChanged || identifierChanged || planChanged) {
           // Update existing order with correct product/variant/identifier/plan
@@ -428,8 +427,8 @@ serve(async (req) => {
             .update({
               product_name: product.name,
               product_type: product.category,
-              plan_name: matchingPlan.name,
-              price: matchingPlan.price,
+              plan_name: planName,
+              price: planPrice,
               variant_id: variantId,
               variant_name: variantName,
               pterodactyl_identifier: serverIdentifier,
@@ -444,7 +443,7 @@ serve(async (req) => {
             if (productChanged) changes.push(`product: ${existingOrder.product_name} -> ${product.name}`);
             if (variantChanged) changes.push(`variant: ${existingOrder.variant_name || 'none'} -> ${variantName || 'none'}`);
             if (identifierChanged) changes.push(`identifier: ${existingOrder.pterodactyl_identifier || 'none'} -> ${serverIdentifier}`);
-            if (planChanged) changes.push(`plan: ${existingOrder.plan_name || 'none'} -> ${matchingPlan.name}`);
+            if (planChanged) changes.push(`plan: ${existingOrder.plan_name || 'none'} -> ${planName}`);
             console.log(`Updated order for server ${serverId} (${serverName}): ${changes.join(', ')}`);
             results.updated++;
           }
@@ -460,8 +459,8 @@ serve(async (req) => {
             user_id: supabaseUserId,
             product_name: product.name,
             product_type: product.category,
-            plan_name: matchingPlan.name,
-            price: matchingPlan.price,
+            plan_name: planName,
+            price: planPrice,
             status: 'active',
             pterodactyl_server_id: serverId,
             pterodactyl_identifier: serverIdentifier,
@@ -473,7 +472,7 @@ serve(async (req) => {
           console.error(`Failed to create order for server ${serverId}:`, insertError.message);
           results.errors.push(`Server ${serverName}: ${insertError.message}`);
         } else {
-          console.log(`Created order for server ${serverId} (${serverName}) -> ${product.name} / ${matchingPlan.name}`);
+          console.log(`Created order for server ${serverId} (${serverName}) -> ${product.name} / ${planName}`);
           results.imported++;
         }
       }
