@@ -414,12 +414,13 @@ serve(async (req) => {
 
       // Check if order exists and needs update
       if (existingOrder) {
-        // Check if product/variant changed
+        // Check if product/variant/identifier changed
         const productChanged = existingOrder.product_name !== product.name;
         const variantChanged = existingOrder.variant_name !== variantName;
+        const identifierChanged = existingOrder.pterodactyl_identifier !== serverIdentifier;
         
-        if (productChanged || variantChanged) {
-          // Update existing order with correct product/variant
+        if (productChanged || variantChanged || identifierChanged) {
+          // Update existing order with correct product/variant/identifier
           const { error: updateError } = await supabase
             .from('orders')
             .update({
@@ -429,6 +430,7 @@ serve(async (req) => {
               price: matchingPlan.price,
               variant_id: variantId,
               variant_name: variantName,
+              pterodactyl_identifier: serverIdentifier,
             })
             .eq('id', existingOrder.id);
 
@@ -436,7 +438,11 @@ serve(async (req) => {
             console.error(`Failed to update order for server ${serverId}:`, updateError.message);
             results.errors.push(`Server ${serverName}: ${updateError.message}`);
           } else {
-            console.log(`Updated order for server ${serverId} (${serverName}): ${existingOrder.product_name}${existingOrder.variant_name ? ` (${existingOrder.variant_name})` : ''} -> ${product.name}${variantName ? ` (${variantName})` : ''}`);
+            const changes = [];
+            if (productChanged) changes.push(`product: ${existingOrder.product_name} -> ${product.name}`);
+            if (variantChanged) changes.push(`variant: ${existingOrder.variant_name || 'none'} -> ${variantName || 'none'}`);
+            if (identifierChanged) changes.push(`identifier: ${existingOrder.pterodactyl_identifier || 'none'} -> ${serverIdentifier}`);
+            console.log(`Updated order for server ${serverId} (${serverName}): ${changes.join(', ')}`);
             results.updated++;
           }
         } else {
