@@ -1,136 +1,64 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Loader2, Server, Cpu, HardDrive, Database, Shield, CreditCard, Check } from 'lucide-react';
+import { Loader2, Server, Cpu, HardDrive, Shield, CreditCard, Check } from 'lucide-react';
 
-interface Plan {
-  id: string;
-  name: string;
+interface CheckoutState {
+  productId: string;
+  productName: string;
+  planId: string;
+  planName: string;
   price: number;
-  ram: number;
-  cpu: number;
-  disk: number;
-  databases: number;
-  backups: number;
-  stripe_price_id: string | null;
-  product: {
-    id: string;
-    name: string;
-    description: string | null;
-    image_url: string | null;
-    category: string;
-  };
-}
-
-interface Variant {
-  id: string;
-  name: string;
-  description: string | null;
-  is_default: boolean;
+  variantId?: string;
+  variantName?: string;
+  productType: string;
+  ram?: number;
+  cpu?: number;
+  disk?: number;
 }
 
 const Checkout = () => {
-  const { planId } = useParams<{ planId: string }>();
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { language } = useLanguage();
   
-  const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [plan, setPlan] = useState<Plan | null>(null);
-  const [variants, setVariants] = useState<Variant[]>([]);
-  const [selectedVariant, setSelectedVariant] = useState<string>('');
   const [user, setUser] = useState<any>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  // Get checkout data from location state
+  const checkoutData = location.state as CheckoutState | null;
 
   useEffect(() => {
     checkAuth();
-    loadPlan();
-  }, [planId]);
+  }, []);
+
+  useEffect(() => {
+    // Redirect if no checkout data
+    if (!checkoutData) {
+      toast({
+        title: language === 'nl' ? 'Geen product geselecteerd' : 'No product selected',
+        description: language === 'nl' 
+          ? 'Selecteer eerst een product en plan' 
+          : 'Please select a product and plan first',
+        variant: 'destructive',
+      });
+      navigate('/game-servers');
+    }
+  }, [checkoutData, navigate, toast, language]);
 
   const checkAuth = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     setUser(user);
-  };
-
-  const loadPlan = async () => {
-    if (!planId) return;
-
-    setLoading(true);
-
-    // Load plan with product info
-    const { data: planData, error: planError } = await supabase
-      .from('product_plans')
-      .select(`
-        *,
-        product:products (
-          id,
-          name,
-          description,
-          image_url,
-          category
-        )
-      `)
-      .eq('id', planId)
-      .single();
-
-    if (planError || !planData) {
-      toast({
-        title: language === 'nl' ? 'Fout' : 'Error',
-        description: language === 'nl' ? 'Plan niet gevonden' : 'Plan not found',
-        variant: 'destructive',
-      });
-      navigate('/');
-      return;
-    }
-
-    // Transform to expected shape
-    const transformedPlan: Plan = {
-      id: planData.id,
-      name: planData.name,
-      price: planData.price,
-      ram: planData.ram,
-      cpu: planData.cpu,
-      disk: planData.disk,
-      databases: planData.databases,
-      backups: planData.backups,
-      stripe_price_id: (planData as any).stripe_price_id || null,
-      product: planData.product as any,
-    };
-
-    setPlan(transformedPlan);
-
-    // Load variants for this product
-    const { data: variantsData } = await supabase
-      .from('product_variants')
-      .select('id, name, description, is_default')
-      .eq('product_id', transformedPlan.product.id)
-      .eq('is_active', true)
-      .order('sort_order');
-
-    if (variantsData && variantsData.length > 0) {
-      setVariants(variantsData);
-      // Set default variant from URL or first default
-      const urlVariant = searchParams.get('variant');
-      if (urlVariant && variantsData.some(v => v.id === urlVariant)) {
-        setSelectedVariant(urlVariant);
-      } else {
-        const defaultVariant = variantsData.find(v => v.is_default) || variantsData[0];
-        setSelectedVariant(defaultVariant.id);
-      }
-    }
-
-    setLoading(false);
-  };
-
-  const handleCheckout = async () => {
+    setCheckingAuth(false);
+    
     if (!user) {
       toast({
         title: language === 'nl' ? 'Inloggen vereist' : 'Login required',
@@ -138,28 +66,20 @@ const Checkout = () => {
           ? 'Je moet ingelogd zijn om een bestelling te plaatsen' 
           : 'You must be logged in to place an order',
       });
-      navigate('/auth?redirect=' + encodeURIComponent(window.location.pathname));
-      return;
+      navigate('/auth?redirect=/checkout');
     }
+  };
 
-    if (!plan?.stripe_price_id) {
-      toast({
-        title: language === 'nl' ? 'Fout' : 'Error',
-        description: language === 'nl' 
-          ? 'Dit plan is nog niet beschikbaar voor aankoop. Neem contact op met support.' 
-          : 'This plan is not yet available for purchase. Please contact support.',
-        variant: 'destructive',
-      });
-      return;
-    }
+  const handleCheckout = async () => {
+    if (!user || !checkoutData) return;
 
     setProcessing(true);
 
     try {
       const { data, error } = await supabase.functions.invoke('stripe-create-checkout', {
         body: {
-          planId: plan.id,
-          variantId: selectedVariant || undefined,
+          planId: checkoutData.planId,
+          variantId: checkoutData.variantId || undefined,
         },
       });
 
@@ -171,16 +91,17 @@ const Checkout = () => {
         throw new Error('No checkout URL received');
       }
     } catch (error: any) {
+      console.error('Checkout error:', error);
       toast({
         title: language === 'nl' ? 'Fout' : 'Error',
-        description: error.message,
+        description: error.message || (language === 'nl' ? 'Er ging iets mis' : 'Something went wrong'),
         variant: 'destructive',
       });
       setProcessing(false);
     }
   };
 
-  if (loading) {
+  if (checkingAuth || !checkoutData) {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
@@ -188,10 +109,6 @@ const Checkout = () => {
         </div>
       </Layout>
     );
-  }
-
-  if (!plan) {
-    return null;
   }
 
   return (
@@ -214,59 +131,48 @@ const Checkout = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Server className="h-5 w-5" />
-                    {plan.product.name}
+                    {checkoutData.productName}
                   </CardTitle>
-                  <CardDescription>{plan.product.description}</CardDescription>
+                  {checkoutData.variantName && (
+                    <CardDescription>Variant: {checkoutData.variantName}</CardDescription>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-lg font-medium">{plan.name}</span>
+                    <span className="text-lg font-medium">{checkoutData.planName}</span>
                     <Badge variant="secondary" className="text-lg px-3 py-1">
-                      €{plan.price.toFixed(2)}/mo
+                      €{checkoutData.price.toFixed(2)}/mo
                     </Badge>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Cpu className="h-4 w-4 text-primary" />
-                      <span>{plan.ram / 1024} GB RAM</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Cpu className="h-4 w-4 text-primary" />
-                      <span>{plan.cpu}% CPU</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <HardDrive className="h-4 w-4 text-primary" />
-                      <span>{plan.disk / 1024} GB SSD</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Database className="h-4 w-4 text-primary" />
-                      <span>{plan.databases} DB</span>
-                    </div>
-                  </div>
-
-                  {variants.length > 0 && (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">
-                        {language === 'nl' ? 'Selecteer variant' : 'Select variant'}
-                      </label>
-                      <Select value={selectedVariant} onValueChange={setSelectedVariant}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {variants.map(variant => (
-                            <SelectItem key={variant.id} value={variant.id}>
-                              {variant.name}
-                              {variant.description && (
-                                <span className="text-muted-foreground ml-2">
-                                  - {variant.description}
-                                </span>
-                              )}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  {(checkoutData.ram || checkoutData.cpu || checkoutData.disk) && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                      {checkoutData.ram && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Cpu className="h-4 w-4 text-primary" />
+                          <span>
+                            {checkoutData.ram >= 1024 
+                              ? `${(checkoutData.ram / 1024).toFixed(0)} GB RAM`
+                              : `${checkoutData.ram} MB RAM`}
+                          </span>
+                        </div>
+                      )}
+                      {checkoutData.cpu && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Cpu className="h-4 w-4 text-primary" />
+                          <span>{checkoutData.cpu}% CPU</span>
+                        </div>
+                      )}
+                      {checkoutData.disk && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <HardDrive className="h-4 w-4 text-primary" />
+                          <span>
+                            {checkoutData.disk >= 1024
+                              ? `${(checkoutData.disk / 1024).toFixed(0)} GB SSD`
+                              : `${checkoutData.disk} MB SSD`}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -307,8 +213,8 @@ const Checkout = () => {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex justify-between text-sm">
-                    <span>{plan.name}</span>
-                    <span>€{plan.price.toFixed(2)}</span>
+                    <span>{checkoutData.planName}</span>
+                    <span>€{checkoutData.price.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm text-muted-foreground">
                     <span>BTW (21%)</span>
@@ -317,12 +223,12 @@ const Checkout = () => {
                   <div className="border-t pt-4">
                     <div className="flex justify-between font-bold text-lg">
                       <span>{language === 'nl' ? 'Totaal per maand' : 'Total per month'}</span>
-                      <span>€{plan.price.toFixed(2)}</span>
+                      <span>€{checkoutData.price.toFixed(2)}</span>
                     </div>
                   </div>
 
                   <Button 
-                    className="w-full" 
+                    className="w-full gaming-gradient-bg hover:opacity-90" 
                     size="lg"
                     onClick={handleCheckout}
                     disabled={processing}
@@ -342,9 +248,7 @@ const Checkout = () => {
                   </p>
 
                   <div className="flex justify-center gap-2 pt-2">
-                    <img src="https://cdn.brandfolder.io/KGT2DTA4/at/8vbr8k4mr5xjwk4hxq4t9vs/Visa_Brandmark_Blue_RGB_2021.svg" alt="Visa" className="h-6" />
-                    <img src="https://cdn.brandfolder.io/KGT2DTA4/at/grhj9v46b7jwrg3hmrz4q3h/mc_symbol.svg" alt="Mastercard" className="h-6" />
-                    <span className="text-xs text-muted-foreground self-center">iDEAL • Bancontact</span>
+                    <span className="text-xs text-muted-foreground">Visa • Mastercard • iDEAL • Bancontact</span>
                   </div>
                 </CardContent>
               </Card>

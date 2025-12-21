@@ -14,12 +14,13 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, HelpCircle, BookOpen, RefreshCw, ExternalLink, Settings, Mail } from 'lucide-react';
+import { Users, ShoppingCart, Shield, Loader2, Search, UserPlus, Archive, Package, Plus, Pencil, Trash2, Eye, ChevronDown, ChevronUp, HelpCircle, BookOpen, RefreshCw, ExternalLink, Settings, Mail, CreditCard } from 'lucide-react';
 import ProductImageUpload from '@/components/admin/ProductImageUpload';
 import FAQManagement from '@/components/admin/FAQManagement';
 import KnowledgeBaseManagement from '@/components/admin/KnowledgeBaseManagement';
 import ConfigManagement from '@/components/admin/ConfigManagement';
 import EmailTemplateManagement from '@/components/admin/EmailTemplateManagement';
+import PaymentManagement from '@/components/admin/PaymentManagement';
 import {
   Dialog,
   DialogContent,
@@ -786,6 +787,10 @@ const Admin = () => {
               <Mail className="h-4 w-4" />
               {language === 'nl' ? 'E-mail Templates' : 'Email Templates'}
             </TabsTrigger>
+            <TabsTrigger value="payments" className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              {language === 'nl' ? 'Betalingen' : 'Payments'}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users">
@@ -1297,6 +1302,11 @@ const Admin = () => {
                 <EmailTemplateManagement />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Payment Management Tab */}
+          <TabsContent value="payments">
+            <PaymentManagement />
           </TabsContent>
         </Tabs>
 
