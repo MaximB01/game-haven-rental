@@ -222,13 +222,26 @@ serve(async (req) => {
     // Step 5: Fetch existing orders with pterodactyl_server_id
     const { data: existingOrders } = await supabase
       .from('orders')
-      .select('id, pterodactyl_server_id, pterodactyl_identifier, status, display_id');
+      .select('id, pterodactyl_server_id, pterodactyl_identifier, status, display_id, product_name, variant_name, variant_id');
 
-    const existingServerIds = new Set(
-      (existingOrders || [])
-        .map(o => o.pterodactyl_server_id)
-        .filter(Boolean)
-    );
+    interface ExistingOrder {
+      id: string;
+      pterodactyl_server_id: number | null;
+      pterodactyl_identifier: string | null;
+      status: string;
+      display_id: string | null;
+      product_name: string;
+      variant_name: string | null;
+      variant_id: string | null;
+    }
+
+    // Map server_id -> order for quick lookup
+    const existingOrdersByServerId = new Map<number, ExistingOrder>();
+    for (const order of existingOrders || []) {
+      if (order.pterodactyl_server_id) {
+        existingOrdersByServerId.set(order.pterodactyl_server_id, order as ExistingOrder);
+      }
+    }
 
     // Step 5b: Detect deleted servers and mark their orders as deleted
     const pterodactylServerIds = new Set(servers.map(s => s.attributes.id));
@@ -310,9 +323,10 @@ serve(async (req) => {
       return bestMatch;
     };
 
-    // Step 7: Process servers and create orders
+    // Step 7: Process servers and create/update orders
     const results = {
       imported: 0,
+      updated: 0,
       skipped: 0,
       deleted: deletedCount,
       noUser: 0,
@@ -329,11 +343,8 @@ serve(async (req) => {
       const ram = server.attributes.limits.memory;
       const pterodactylUserId = server.attributes.user;
 
-      // Skip if already exists
-      if (existingServerIds.has(serverId)) {
-        results.skipped++;
-        continue;
-      }
+      // Check if order already exists for this server
+      const existingOrder = existingOrdersByServerId.get(serverId);
 
       // Get Pterodactyl user email
       const userEmail = pterodactylUserMap.get(pterodactylUserId);
@@ -401,28 +412,61 @@ serve(async (req) => {
         continue;
       }
 
-      // Create order
-      const { error: insertError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: supabaseUserId,
-          product_name: product.name,
-          product_type: product.category,
-          plan_name: matchingPlan.name,
-          price: matchingPlan.price,
-          status: 'active',
-          pterodactyl_server_id: serverId,
-          pterodactyl_identifier: serverIdentifier,
-          variant_id: variantId,
-          variant_name: variantName,
-        });
+      // Check if order exists and needs update
+      if (existingOrder) {
+        // Check if product/variant changed
+        const productChanged = existingOrder.product_name !== product.name;
+        const variantChanged = existingOrder.variant_name !== variantName;
+        
+        if (productChanged || variantChanged) {
+          // Update existing order with correct product/variant
+          const { error: updateError } = await supabase
+            .from('orders')
+            .update({
+              product_name: product.name,
+              product_type: product.category,
+              plan_name: matchingPlan.name,
+              price: matchingPlan.price,
+              variant_id: variantId,
+              variant_name: variantName,
+            })
+            .eq('id', existingOrder.id);
 
-      if (insertError) {
-        console.error(`Failed to create order for server ${serverId}:`, insertError.message);
-        results.errors.push(`Server ${serverName}: ${insertError.message}`);
+          if (updateError) {
+            console.error(`Failed to update order for server ${serverId}:`, updateError.message);
+            results.errors.push(`Server ${serverName}: ${updateError.message}`);
+          } else {
+            console.log(`Updated order for server ${serverId} (${serverName}): ${existingOrder.product_name}${existingOrder.variant_name ? ` (${existingOrder.variant_name})` : ''} -> ${product.name}${variantName ? ` (${variantName})` : ''}`);
+            results.updated++;
+          }
+        } else {
+          // No changes needed
+          results.skipped++;
+        }
       } else {
-        console.log(`Created order for server ${serverId} (${serverName}) -> ${product.name} / ${matchingPlan.name}`);
-        results.imported++;
+        // Create new order
+        const { error: insertError } = await supabase
+          .from('orders')
+          .insert({
+            user_id: supabaseUserId,
+            product_name: product.name,
+            product_type: product.category,
+            plan_name: matchingPlan.name,
+            price: matchingPlan.price,
+            status: 'active',
+            pterodactyl_server_id: serverId,
+            pterodactyl_identifier: serverIdentifier,
+            variant_id: variantId,
+            variant_name: variantName,
+          });
+
+        if (insertError) {
+          console.error(`Failed to create order for server ${serverId}:`, insertError.message);
+          results.errors.push(`Server ${serverName}: ${insertError.message}`);
+        } else {
+          console.log(`Created order for server ${serverId} (${serverName}) -> ${product.name} / ${matchingPlan.name}`);
+          results.imported++;
+        }
       }
     }
 
@@ -432,7 +476,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         results,
-        message: `Imported ${results.imported} servers, skipped ${results.skipped} existing, deleted ${results.deleted}, ${results.noUser} without user, ${results.noProduct} without product match, ${results.noPlan} without plan`,
+        message: `Imported ${results.imported} servers, updated ${results.updated}, skipped ${results.skipped} unchanged, deleted ${results.deleted}, ${results.noUser} without user, ${results.noProduct} without product match, ${results.noPlan} without plan`,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
