@@ -83,6 +83,75 @@ export type Database = {
         }
         Relationships: []
       }
+      invoices: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          hosted_invoice_url: string | null
+          id: string
+          invoice_pdf_url: string | null
+          order_id: string | null
+          paid_at: string | null
+          period_end: string | null
+          period_start: string | null
+          status: string
+          stripe_invoice_id: string
+          stripe_payment_intent_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_pdf_url?: string | null
+          order_id?: string | null
+          paid_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          status?: string
+          stripe_invoice_id: string
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_pdf_url?: string | null
+          order_id?: string | null
+          paid_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          status?: string
+          stripe_invoice_id?: string
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "user_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_base_articles: {
         Row: {
           category: string
@@ -124,9 +193,11 @@ export type Database = {
       }
       orders: {
         Row: {
+          cancelled_at: string | null
           created_at: string
           display_id: string | null
           id: string
+          next_billing_date: string | null
           plan_name: string
           price: number
           product_name: string
@@ -134,15 +205,19 @@ export type Database = {
           pterodactyl_identifier: string | null
           pterodactyl_server_id: number | null
           status: string
+          stripe_checkout_session_id: string | null
+          stripe_subscription_id: string | null
           updated_at: string
           user_id: string
           variant_id: string | null
           variant_name: string | null
         }
         Insert: {
+          cancelled_at?: string | null
           created_at?: string
           display_id?: string | null
           id?: string
+          next_billing_date?: string | null
           plan_name: string
           price: number
           product_name: string
@@ -150,15 +225,19 @@ export type Database = {
           pterodactyl_identifier?: string | null
           pterodactyl_server_id?: number | null
           status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string
           user_id: string
           variant_id?: string | null
           variant_name?: string | null
         }
         Update: {
+          cancelled_at?: string | null
           created_at?: string
           display_id?: string | null
           id?: string
+          next_billing_date?: string | null
           plan_name?: string
           price?: number
           product_name?: string
@@ -166,6 +245,8 @@ export type Database = {
           pterodactyl_identifier?: string | null
           pterodactyl_server_id?: number | null
           status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_subscription_id?: string | null
           updated_at?: string
           user_id?: string
           variant_id?: string | null
@@ -184,6 +265,7 @@ export type Database = {
       product_plans: {
         Row: {
           backups: number
+          billing_period: string | null
           cpu: number
           created_at: string
           databases: number
@@ -194,10 +276,12 @@ export type Database = {
           price: number
           product_id: string
           ram: number
+          stripe_price_id: string | null
           updated_at: string
         }
         Insert: {
           backups?: number
+          billing_period?: string | null
           cpu: number
           created_at?: string
           databases?: number
@@ -208,10 +292,12 @@ export type Database = {
           price: number
           product_id: string
           ram: number
+          stripe_price_id?: string | null
           updated_at?: string
         }
         Update: {
           backups?: number
+          billing_period?: string | null
           cpu?: number
           created_at?: string
           databases?: number
@@ -222,6 +308,7 @@ export type Database = {
           price?: number
           product_id?: string
           ram?: number
+          stripe_price_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -311,6 +398,7 @@ export type Database = {
           page_path: string | null
           slug: string
           startup_command: string | null
+          stripe_product_id: string | null
           temporarily_unavailable: boolean
           updated_at: string
         }
@@ -334,6 +422,7 @@ export type Database = {
           page_path?: string | null
           slug: string
           startup_command?: string | null
+          stripe_product_id?: string | null
           temporarily_unavailable?: boolean
           updated_at?: string
         }
@@ -357,6 +446,7 @@ export type Database = {
           page_path?: string | null
           slug?: string
           startup_command?: string | null
+          stripe_product_id?: string | null
           temporarily_unavailable?: boolean
           updated_at?: string
         }
@@ -374,6 +464,7 @@ export type Database = {
           id: string
           phone: string | null
           postal_code: string | null
+          stripe_customer_id: string | null
           updated_at: string
           user_id: string
         }
@@ -388,6 +479,7 @@ export type Database = {
           id?: string
           phone?: string | null
           postal_code?: string | null
+          stripe_customer_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -402,6 +494,7 @@ export type Database = {
           id?: string
           phone?: string | null
           postal_code?: string | null
+          stripe_customer_id?: string | null
           updated_at?: string
           user_id?: string
         }
