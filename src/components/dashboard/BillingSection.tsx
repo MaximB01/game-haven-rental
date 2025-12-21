@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
-import { CreditCard, FileText, ExternalLink, Loader2, Calendar, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { CreditCard, FileText, ExternalLink, Loader2, Calendar, CheckCircle, XCircle, Clock, TrendingUp, Euro } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { nl, enUS } from 'date-fns/locale';
 
 interface Invoice {
   id: string;
@@ -34,6 +37,7 @@ interface Subscription {
 const BillingSection = () => {
   const { language } = useLanguage();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
@@ -48,7 +52,7 @@ const BillingSection = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch invoices
+      // Fetch invoices for display (last 10)
       const { data: invoicesData } = await supabase
         .from('invoices')
         .select('*')
@@ -57,6 +61,18 @@ const BillingSection = () => {
         .limit(10);
 
       if (invoicesData) setInvoices(invoicesData);
+
+      // Fetch all invoices from last 12 months for chart
+      const twelveMonthsAgo = subMonths(new Date(), 12);
+      const { data: allInvoicesData } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'paid')
+        .gte('created_at', twelveMonthsAgo.toISOString())
+        .order('created_at', { ascending: true });
+
+      if (allInvoicesData) setAllInvoices(allInvoicesData);
 
       // Fetch active subscriptions (orders with stripe_subscription_id)
       const { data: ordersData } = await supabase
@@ -121,6 +137,40 @@ const BillingSection = () => {
     }).format(amount);
   };
 
+  // Calculate monthly spending data for chart
+  const monthlySpendingData = useMemo(() => {
+    const months: { month: string; amount: number; label: string }[] = [];
+    const now = new Date();
+    const locale = language === 'nl' ? nl : enUS;
+
+    // Generate last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const monthDate = subMonths(now, i);
+      const monthStart = startOfMonth(monthDate);
+      const monthEnd = endOfMonth(monthDate);
+      
+      // Sum invoices for this month
+      const monthTotal = allInvoices
+        .filter(inv => {
+          const invDate = new Date(inv.created_at);
+          return invDate >= monthStart && invDate <= monthEnd;
+        })
+        .reduce((sum, inv) => sum + inv.amount, 0);
+
+      months.push({
+        month: format(monthDate, 'MMM', { locale }),
+        label: format(monthDate, 'MMMM yyyy', { locale }),
+        amount: monthTotal,
+      });
+    }
+
+    return months;
+  }, [allInvoices, language]);
+
+  // Calculate totals
+  const totalMonthlySpending = subscriptions.reduce((sum, sub) => sum + sub.price, 0);
+  const totalPaidThisYear = allInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -131,6 +181,121 @@ const BillingSection = () => {
 
   return (
     <div className="space-y-6">
+      {/* Spending Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                <Euro className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  {language === 'nl' ? 'Maandelijkse kosten' : 'Monthly costs'}
+                </p>
+                <p className="text-2xl font-bold">{formatCurrency(totalMonthlySpending)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-green-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  {language === 'nl' ? 'Betaald dit jaar' : 'Paid this year'}
+                </p>
+                <p className="text-2xl font-bold">{formatCurrency(totalPaidThisYear)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <CreditCard className="h-6 w-6 text-blue-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  {language === 'nl' ? 'Actieve abonnementen' : 'Active subscriptions'}
+                </p>
+                <p className="text-2xl font-bold">{subscriptions.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Monthly Spending Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            {language === 'nl' ? 'Maandelijkse Uitgaven' : 'Monthly Spending'}
+          </CardTitle>
+          <CardDescription>
+            {language === 'nl' 
+              ? 'Overzicht van je uitgaven per maand' 
+              : 'Overview of your spending per month'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {monthlySpendingData.some(d => d.amount > 0) ? (
+            <div className="h-[250px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={monthlySpendingData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis 
+                    dataKey="month" 
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    axisLine={{ stroke: 'hsl(var(--border))' }}
+                    tickLine={{ stroke: 'hsl(var(--border))' }}
+                  />
+                  <YAxis 
+                    tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                    axisLine={{ stroke: 'hsl(var(--border))' }}
+                    tickLine={{ stroke: 'hsl(var(--border))' }}
+                    tickFormatter={(value) => `€${value}`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))', 
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      color: 'hsl(var(--foreground))'
+                    }}
+                    formatter={(value: number) => [formatCurrency(value), language === 'nl' ? 'Uitgaven' : 'Spending']}
+                    labelFormatter={(label, payload) => payload?.[0]?.payload?.label || label}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="amount" 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={2}
+                    fillOpacity={1} 
+                    fill="url(#colorAmount)" 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>{language === 'nl' ? 'Nog geen uitgaven om weer te geven' : 'No spending data to display yet'}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
       {/* Active Subscriptions */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
