@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Package, LogOut, Settings, Server, Archive } from 'lucide-react';
+import { User, Package, LogOut, Settings, Server, Archive, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import Layout from '@/components/layout/Layout';
 import ServerDetailModal from '@/components/dashboard/ServerDetailModal';
+import BillingSection from '@/components/dashboard/BillingSection';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 // User-facing order data (without internal infrastructure IDs)
@@ -35,7 +36,7 @@ const Dashboard = () => {
   const [selectedOrder, setSelectedOrder] = useState<OrderWithServerDetails | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -303,6 +304,10 @@ const Dashboard = () => {
                   <Archive className="h-4 w-4" />
                   {t('dashboard.archiveTab')} ({archivedOrders.length})
                 </TabsTrigger>
+                <TabsTrigger value="billing" className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  {t('dashboard.billing') || (language === 'nl' ? 'Facturatie' : 'Billing')}
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="active">
@@ -311,6 +316,10 @@ const Dashboard = () => {
 
               <TabsContent value="archive">
                 {renderOrdersTable(archivedOrders, t('dashboard.noArchivedOrders'))}
+              </TabsContent>
+
+              <TabsContent value="billing">
+                <BillingSection />
               </TabsContent>
             </Tabs>
           </div>
