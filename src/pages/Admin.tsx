@@ -114,6 +114,7 @@ const Admin = () => {
   const [productVariants, setProductVariants] = useState<ProductVariant[]>([]);
   
   const [syncingPterodactyl, setSyncingPterodactyl] = useState(false);
+  const [syncingStripe, setSyncingStripe] = useState(false);
 
   // Product form state
   const [productForm, setProductForm] = useState({
@@ -390,6 +391,8 @@ const Admin = () => {
   };
 
   const handleSaveProduct = async () => {
+    let productId: string | null = null;
+    
     if (editingProduct) {
       const { error } = await supabase
         .from('products')
@@ -400,21 +403,36 @@ const Admin = () => {
         toast({ title: t('admin.error'), description: error.message, variant: 'destructive' });
         return;
       }
+      productId = editingProduct.id;
     } else {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('products')
-        .insert([productForm]);
+        .insert([productForm])
+        .select('id')
+        .single();
 
       if (error) {
         toast({ title: t('admin.error'), description: error.message, variant: 'destructive' });
         return;
       }
+      productId = data?.id || null;
     }
 
     toast({ title: t('admin.success'), description: t('admin.productSaved') });
     setProductDialogOpen(false);
     resetProductForm();
-    fetchProducts();
+    await fetchProducts();
+    
+    // Sync product to Stripe
+    if (productId) {
+      try {
+        await supabase.functions.invoke('stripe-sync-products', {
+          body: { productIds: [productId] }
+        });
+      } catch (syncError) {
+        console.error('Failed to sync product to Stripe:', syncError);
+      }
+    }
   };
 
   const handleDeleteProduct = async (id: string) => {
@@ -432,6 +450,8 @@ const Admin = () => {
   };
 
   const handleSavePlan = async () => {
+    let planId: string | null = null;
+    
     if (editingPlan) {
       const { error } = await supabase
         .from('product_plans')
@@ -442,21 +462,36 @@ const Admin = () => {
         toast({ title: t('admin.error'), description: error.message, variant: 'destructive' });
         return;
       }
+      planId = editingPlan.id;
     } else {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('product_plans')
-        .insert([planForm]);
+        .insert([planForm])
+        .select('id, product_id')
+        .single();
 
       if (error) {
         toast({ title: t('admin.error'), description: error.message, variant: 'destructive' });
         return;
       }
+      planId = data?.id || null;
     }
 
     toast({ title: t('admin.success'), description: t('admin.planSaved') });
     setPlanDialogOpen(false);
     resetPlanForm();
-    fetchProductPlans();
+    await fetchProductPlans();
+    
+    // Sync plan to Stripe (requires product to be synced first)
+    if (planId && planForm.product_id) {
+      try {
+        await supabase.functions.invoke('stripe-sync-products', {
+          body: { productIds: [planForm.product_id], planIds: [planId] }
+        });
+      } catch (syncError) {
+        console.error('Failed to sync plan to Stripe:', syncError);
+      }
+    }
   };
 
   const handleDeletePlan = async (id: string) => {
@@ -470,6 +505,30 @@ const Admin = () => {
     } else {
       toast({ title: t('admin.success'), description: t('admin.planDeleted') });
       fetchProductPlans();
+    }
+  };
+
+  const handleSyncAllProductsToStripe = async () => {
+    setSyncingStripe(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('stripe-sync-products');
+      
+      if (error) throw error;
+
+      toast({
+        title: language === 'nl' ? 'Stripe sync voltooid' : 'Stripe sync complete',
+        description: data?.message || 'Alle producten zijn gesynchroniseerd met Stripe',
+      });
+      await fetchProducts();
+      await fetchProductPlans();
+    } catch (err: any) {
+      toast({
+        title: language === 'nl' ? 'Stripe sync mislukt' : 'Stripe sync failed',
+        description: err.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncingStripe(false);
     }
   };
 
@@ -1059,10 +1118,24 @@ const Admin = () => {
                   <CardTitle>{t('admin.productManagement')}</CardTitle>
                   <CardDescription>{t('admin.productDescription')}</CardDescription>
                 </div>
-                <Button onClick={() => { resetProductForm(); setProductDialogOpen(true); }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t('admin.addProduct')}
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={handleSyncAllProductsToStripe}
+                    disabled={syncingStripe}
+                  >
+                    {syncingStripe ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    {language === 'nl' ? 'Sync naar Stripe' : 'Sync to Stripe'}
+                  </Button>
+                  <Button onClick={() => { resetProductForm(); setProductDialogOpen(true); }}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t('admin.addProduct')}
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {products.map((product) => (
