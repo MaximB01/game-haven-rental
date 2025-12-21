@@ -238,17 +238,16 @@ serve(async (req) => {
       const errors = productServers.filter(s => s.state === 'error').length;
 
       // Determine overall status for this service (without revealing counts)
+      // Only errors indicate real problems - offline/stopped servers are intentional
       let status: PublicServiceStatus['status'] = 'operational';
       if (total === 0) {
         status = 'operational'; // No servers = assume operational
       } else if (errors > 0 && errors === total) {
-        status = 'down';
-      } else if (errors > 0 || (offline > 0 && running === 0)) {
-        status = 'degraded';
-      } else if (offline > 0 && running > 0) {
-        status = 'partial';
-      } else if (running === total) {
-        status = 'operational';
+        status = 'down'; // All servers have errors (can't reach API)
+      } else if (errors > 0) {
+        status = 'degraded'; // Some servers have errors (partial API failures)
+      } else {
+        status = 'operational'; // No errors - running, offline, or stopped are all fine
       }
 
       // Return only name and status - no counts or detailed metrics
