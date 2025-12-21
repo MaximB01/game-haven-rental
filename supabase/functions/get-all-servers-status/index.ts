@@ -250,6 +250,11 @@ serve(async (req) => {
         status = 'operational'; // No errors - running, offline, or stopped are all fine
       }
 
+      // Debug logging for Minecraft and any products with errors
+      if (product.name.toLowerCase().includes('minecraft') || errors > 0) {
+        console.log(`DEBUG Product "${product.name}": total=${total}, running=${running}, offline=${offline}, errors=${errors}, status=${status}`);
+      }
+
       // Return only name and status - no counts or detailed metrics
       return {
         name: product.name,
