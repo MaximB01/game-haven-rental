@@ -275,7 +275,11 @@ const ServerStatusPage = () => {
                               </div>
                             </div>
 
-                            {node.status === "operational" && <div className="space-y-3"></div>}
+                            {node.status === "operational" && (
+                              <p className="text-sm text-blue-500">
+                                Deze node is operationeel. Servers op deze node zijn bereikbaar.
+                              </p>
+                            )}
 
                             {node.status === "maintenance" && (
                               <p className="text-sm text-blue-500">
