@@ -275,38 +275,7 @@ const ServerStatusPage = () => {
                               </div>
                             </div>
 
-                            {node.status === "operational" && (
-                              <div className="space-y-3">
-                                <div>
-                                  <div className="flex justify-between text-sm mb-1">
-                                    <span className="text-muted-foreground">Geheugen</span>
-                                    <span>
-                                      {formatBytes(node.memory_used)} / {formatBytes(node.memory_total)}
-                                    </span>
-                                  </div>
-                                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                    <div
-                                      className={`h-full ${getProgressColor(memoryPercent)} transition-all`}
-                                      style={{ width: `${memoryPercent}%` }}
-                                    />
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="flex justify-between text-sm mb-1">
-                                    <span className="text-muted-foreground">Opslag</span>
-                                    <span>
-                                      {formatBytes(node.disk_used)} / {formatBytes(node.disk_total)}
-                                    </span>
-                                  </div>
-                                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                    <div
-                                      className={`h-full ${getProgressColor(diskPercent)} transition-all`}
-                                      style={{ width: `${diskPercent}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            )}
+                            {node.status === "operational" && <div className="space-y-3"></div>}
 
                             {node.status === "maintenance" && (
                               <p className="text-sm text-blue-500">
