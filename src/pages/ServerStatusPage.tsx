@@ -277,7 +277,8 @@ const ServerStatusPage = () => {
 
                             {node.status === "operational" && (
                               <p className="text-sm text-blue-500">
-                                Deze node is volledig operationeel. Servers op deze node zijn bereikbaar.
+                                Deze node is volledig operationeel. Servers op deze node zijn bereikbaar zonder
+                                problemen.
                               </p>
                             )}
 
