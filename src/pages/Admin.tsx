@@ -69,6 +69,7 @@ interface ProductPlan {
   databases: number;
   backups: number;
   is_active: boolean;
+  is_popular: boolean;
 }
 
 interface ProductVariant {
@@ -149,6 +150,7 @@ const Admin = () => {
     databases: 1,
     backups: 1,
     is_active: true,
+    is_popular: false,
   });
 
   // Variant form state
@@ -610,6 +612,7 @@ const Admin = () => {
       databases: 1,
       backups: 1,
       is_active: true,
+      is_popular: false,
     });
   };
 
@@ -666,6 +669,7 @@ const Admin = () => {
       databases: plan.databases,
       backups: plan.backups,
       is_active: plan.is_active,
+      is_popular: plan.is_popular || false,
     });
     setPlanDialogOpen(true);
   };
@@ -1800,6 +1804,13 @@ const Admin = () => {
                   onCheckedChange={(v) => setPlanForm({ ...planForm, is_active: v })}
                 />
                 <Label>{t('admin.active')}</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  checked={planForm.is_popular}
+                  onCheckedChange={(v) => setPlanForm({ ...planForm, is_popular: v })}
+                />
+                <Label>{language === 'nl' ? 'Populair' : 'Popular'}</Label>
               </div>
             </div>
             <DialogFooter>

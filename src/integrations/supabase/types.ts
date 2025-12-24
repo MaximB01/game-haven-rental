@@ -272,6 +272,7 @@ export type Database = {
           disk: number
           id: string
           is_active: boolean
+          is_popular: boolean
           name: string
           price: number
           product_id: string
@@ -288,6 +289,7 @@ export type Database = {
           disk: number
           id?: string
           is_active?: boolean
+          is_popular?: boolean
           name: string
           price: number
           product_id: string
@@ -304,6 +306,7 @@ export type Database = {
           disk?: number
           id?: string
           is_active?: boolean
+          is_popular?: boolean
           name?: string
           price?: number
           product_id?: string
