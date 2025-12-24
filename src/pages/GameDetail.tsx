@@ -47,6 +47,7 @@ interface ProductPlan {
   databases: number;
   backups: number;
   is_active: boolean;
+  is_popular: boolean;
 }
 
 interface ProductVariant {
@@ -506,8 +507,8 @@ const GameDetail = () => {
           </h2>
 
           <div className={`grid grid-cols-1 md:grid-cols-2 ${plans.length >= 3 ? 'lg:grid-cols-3' : ''} ${plans.length >= 4 ? 'xl:grid-cols-4' : ''} gap-6`}>
-            {plans.map((plan, index) => {
-              const isPopular = index === 1;
+            {plans.map((plan) => {
+              const isPopular = plan.is_popular;
               return (
                 <div
                   key={plan.id}

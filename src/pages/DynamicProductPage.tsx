@@ -30,6 +30,7 @@ interface ProductPlan {
   databases: number;
   backups: number;
   is_active: boolean;
+  is_popular: boolean;
 }
 
 const DynamicProductPage = () => {
@@ -106,10 +107,10 @@ const DynamicProductPage = () => {
     setLoading(false);
   };
 
-  // Mark the second plan as popular (if exists)
-  const plansWithPopular = plans.map((plan, index) => ({
+  // Use is_popular from database
+  const plansWithPopular = plans.map((plan) => ({
     ...plan,
-    popular: index === 1,
+    popular: plan.is_popular,
   }));
 
   const getFeatures = () => {
