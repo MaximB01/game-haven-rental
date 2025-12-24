@@ -284,8 +284,8 @@ const ServerStatusPage = () => {
 
                             {node.status === "maintenance" && (
                               <p className="text-sm text-blue-500">
-                                Deze node is momenteel in onderhoud. Servers op deze node kunnen tijdelijk onbereikbaar
-                                zijn.
+                                Deze node is momenteel in onderhoud. U kunt mogelijks problemen ondervinden met servers
+                                op deze node.
                               </p>
                             )}
 
