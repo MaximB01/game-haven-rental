@@ -306,7 +306,7 @@ const Dashboard = () => {
                 </TabsTrigger>
                 <TabsTrigger value="billing" className="flex items-center gap-2">
                   <CreditCard className="h-4 w-4" />
-                  {t('dashboard.billing') || (language === 'nl' ? 'Facturatie' : 'Billing')}
+                  {t('dashboard.billingTab')}
                 </TabsTrigger>
               </TabsList>
 

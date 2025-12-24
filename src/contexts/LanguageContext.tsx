@@ -174,6 +174,7 @@ const translations: Translations = {
   'dashboard.contactSupport': { nl: 'Neem contact op', en: 'Contact Support' },
   'dashboard.activeTab': { nl: 'Actief', en: 'Active' },
   'dashboard.archiveTab': { nl: 'Archief', en: 'Archive' },
+  'dashboard.billingTab': { nl: 'Facturatie', en: 'Billing' },
   'dashboard.archivedServers': { nl: 'Gearchiveerd', en: 'Archived' },
   'dashboard.noActiveOrders': { nl: 'Je hebt geen actieve bestellingen', en: 'You have no active orders' },
   'dashboard.noArchivedOrders': { nl: 'Je hebt geen gearchiveerde bestellingen', en: 'You have no archived orders' },
